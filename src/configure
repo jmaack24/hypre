@@ -784,6 +784,7 @@ enable_fortran
 enable_unified_memory
 enable_cuda_streams
 enable_cusparse
+enable_cusolver
 enable_device_memory_pool
 enable_cublas
 enable_curand
@@ -1516,6 +1517,7 @@ Optional Features:
                           (default is NO).
   --enable-cuda-streams   Use CUDA streams (default is YES).
   --enable-cusparse       Use cuSPARSE (default is YES).
+  --enable-cusolver       Use cuSOLVER (default is NO).
   --enable-device-memory-pool
                           Use device pooling allocator (default is NO).
   --enable-cublas         Use cuBLAS (default is NO).
@@ -2782,6 +2784,7 @@ hypre_gpu_mpi=no
 hypre_using_gpu_profiling=no
 hypre_using_cuda_streams=no
 hypre_using_cusparse=yes
+hypre_using_cusolver=no
 hypre_using_cublas=no
 hypre_using_curand=yes
 hypre_using_device_pool=no
@@ -3134,6 +3137,18 @@ if test "${enable_cusparse+set}" = set; then :
  esac
 else
   hypre_using_cusparse=yes
+
+fi
+
+# Check whether --enable-cusolver was given.
+if test "${enable_cusolver+set}" = set; then :
+  enableval=$enable_cusolver; case "${enableval}" in
+    yes) hypre_using_cusolver=yes ;;
+    no)  hypre_using_cusolver=no ;;
+    *)   hypre_using_cusolver=yes ;;
+ esac
+else
+  hypre_using_cusolver=no
 
 fi
 
@@ -9160,6 +9175,14 @@ $as_echo "#define HYPRE_USING_NVTX 1" >>confdefs.h
 $as_echo "#define HYPRE_USING_CUSPARSE 1" >>confdefs.h
 
       HYPRE_CUDA_LIBS+=" -lcusparse"
+   fi
+
+   if test "$hypre_using_cusolver" = "yes"
+   then
+
+$as_echo "#define HYPRE_USING_CUSOLVER 1" >>confdefs.h
+
+       HYPRE_CUDA_LIBS+=" -lcusolver"
    fi
 
    if test "$hypre_using_cublas" = "yes"
