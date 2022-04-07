@@ -2205,12 +2205,6 @@ HYPRE_Int hypre_ILUGetInteriorExteriorPerm(hypre_ParCSRMatrix *A, HYPRE_Int **pe
                                            HYPRE_Int reordering_type);
 HYPRE_Int hypre_ILUGetLocalPerm(hypre_ParCSRMatrix *A, HYPRE_Int **perm, HYPRE_Int *nLU,
                                 HYPRE_Int reordering_type);
-#ifdef HYPRE_USING_CUSOLVER
-HYPRE_Int hypre_ILUGetInteriorExteriorPermDevice(hypre_ParCSRMatrix *A, HYPRE_Int **perm, HYPRE_Int *nLU,
-                                                 HYPRE_Int reordering_type);
-HYPRE_Int hypre_ILUGetLocalPermDevice(hypre_ParCSRMatrix *A, HYPRE_Int **perm, HYPRE_Int *nLU,
-                                      HYPRE_Int reordering_type);
-#endif
 HYPRE_Int hypre_ILUWriteSolverParams(void *ilu_vdata);
 HYPRE_Int hypre_ILUBuildRASExternalMatrix(hypre_ParCSRMatrix *A, HYPRE_Int *rperm, HYPRE_Int **E_i,
                                           HYPRE_Int **E_j, HYPRE_Real **E_data);
