@@ -39,6 +39,8 @@ hypre_ILUSetup( void               *ilu_vdata,
    HYPRE_Int            *qperm               = hypre_ParILUDataQPerm(ilu_data);
    HYPRE_Real           tol_ddPQ             = hypre_ParILUDataTolDDPQ(ilu_data);
 
+   char * mmfilename = hypre_ParILUDataMatrixMarketFileName(ilu_data);
+
 #if defined(HYPRE_USING_CUSPARSE) || defined(HYPRE_USING_ROCSPARSE)
    hypre_ParCSRMatrix      *Aperm            = hypre_ParILUDataAperm(ilu_data);
    hypre_ParCSRMatrix      *R                = hypre_ParILUDataR(ilu_data);
@@ -56,6 +58,7 @@ hypre_ILUSetup( void               *ilu_vdata,
    hypre_Vector            *Sdiag_diag       = NULL;
    hypre_Vector            *Ztemp            = NULL;
 
+  
    hypre_GpuMatData        *matL_des = hypre_ParILUDataMatLMatData(ilu_data);
    hypre_GpuMatData        *matU_des = hypre_ParILUDataMatUMatData(ilu_data);
    hypre_CsrsvData         * matALU_csrsvdata = hypre_ParILUDataMatALUCsrsvData(ilu_data);
@@ -409,7 +412,7 @@ hypre_ILUSetup( void               *ilu_vdata,
          case 40: case 41:/* ddPQ */
             hypre_ILUGetPermddPQ(matA, &perm, &qperm, tol_ddPQ, &nLU, &nI, reordering_type);
             break;
-         case 0: case 1:
+         case 0: case 1: case 2:
             hypre_ILUGetLocalPerm(matA, &perm, &nLU, reordering_type);
             break;
          default:
@@ -454,6 +457,14 @@ hypre_ILUSetup( void               *ilu_vdata,
 #else
          hypre_ILUSetupILUT(matA, max_row_elmts, droptol, perm, perm, n, n, &matL, &matD, &matU, &matS,
                             &u_end); //BJ + hypre_ilut()
+#endif
+         break;
+      case 2:
+#ifdef HYPRE_USING_CUDA
+         hypre_ILUSetupILDLTDevice(matA, max_row_elmts, droptol, perm, perm, n, n, matL_des, matU_des,
+                                   &matBLU_csrsvdata, &matSLU_csrsvdata, &matBLU_d, &matS,
+                                   &matE_d, &matF_d, &A_diag_fake, tri_solve, mmfilename);//BJ + hypre_ilut(), setup the device solve
+#else
 #endif
          break;
       case 10:
@@ -1306,7 +1317,7 @@ hypre_ILUSetup( void               *ilu_vdata,
    {
       hypre_ParILUDataOperatorComplexity(ilu_data) =  1.0;
    }
-   else if (ilu_type == 0 || ilu_type == 1 || ilu_type == 10 || ilu_type == 11)
+   else if (ilu_type == 0 || ilu_type == 1 || ilu_type == 2 || ilu_type == 10 || ilu_type == 11)
    {
       if (matBLU_d)
       {
@@ -2014,6 +2025,7 @@ hypre_ILUSetupILUTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol,
 
    return hypre_error_flag;
 }
+
 
 /* Reorder matrix A based on local permutation (combine local permutation into global permutation)
  * WARNING: We don't put diagonal to the first entry of each row

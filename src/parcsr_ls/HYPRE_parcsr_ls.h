@@ -1147,6 +1147,12 @@ HYPRE_Int HYPRE_BoomerAMGSetILUUpperJacobiIters( HYPRE_Solver  solver,
                         HYPRE_Int             ilu_upper_jacobi_iters);
 
 /**
+ * Matrix Market file name for debugging
+ **/
+HYPRE_Int HYPRE_BoomerAMGSetILUMatrixMarketFileName( HYPRE_Solver  solver,
+                                                     char * mmfilename);
+
+/**
  * Set Local Reordering paramter (1==RCM, 0==None)
  * For further explanation see description of ILU.
  **/
@@ -4278,6 +4284,12 @@ HYPRE_ILUSetLowerJacobiIters( HYPRE_Solver solver, HYPRE_Int lower_jacobi_iterat
  **/
 HYPRE_Int
 HYPRE_ILUSetUpperJacobiIters( HYPRE_Solver solver, HYPRE_Int upper_jacobi_iterations );
+
+/**
+ * Matrix Market file name for debugging
+ **/
+HYPRE_Int HYPRE_ILUSetMatrixMarketFileName( HYPRE_Solver  solver,
+                                            char * mmfilename);
 
 /**
  * (Optional) Set the convergence tolerance for the ILU smoother.

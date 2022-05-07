@@ -127,6 +127,18 @@ HYPRE_ILUSetUpperJacobiIters( HYPRE_Solver solver, HYPRE_Int upper_jacobi_iters 
 {
    return hypre_ILUSetUpperJacobiIters( solver, upper_jacobi_iters );
 }
+
+/*--------------------------------------------------------------------------
+ * HYPRE_ILUSetMatrixMarketFileName
+ *--------------------------------------------------------------------------*/
+
+HYPRE_Int
+HYPRE_ILUSetMatrixMarketFileName (HYPRE_Solver solver,
+                                  char *mmfilename)
+{
+   return (hypre_ILUSetMatrixMarketFileName ( (void *) solver, mmfilename ) );
+}
+
 /*--------------------------------------------------------------------------
  * HYPRE_ILUSetTol
  *--------------------------------------------------------------------------*/

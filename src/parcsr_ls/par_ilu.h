@@ -89,6 +89,7 @@ typedef struct hypre_ParILUData_struct
    HYPRE_Int            ruiz_iters;
    HYPRE_Int            lower_jacobi_iters;
    HYPRE_Int            upper_jacobi_iters;
+   char                 *mmfilename;
 
    HYPRE_Int            ilu_type;
    HYPRE_Int            nLU;
@@ -227,6 +228,8 @@ typedef struct hypre_ParILUData_struct
 #define hypre_ParILUDataRuizIters(ilu_data)                    ((ilu_data) -> ruiz_iters)
 #define hypre_ParILUDataLowerJacobiIters(ilu_data)             ((ilu_data) -> lower_jacobi_iters)
 #define hypre_ParILUDataUpperJacobiIters(ilu_data)             ((ilu_data) -> upper_jacobi_iters)
+#define hypre_ParILUDataMatrixMarketFileName(ilu_data)         ((ilu_data) -> mmfilename)
+
 #define hypre_ParILUDataIluType(ilu_data)                      ((ilu_data) -> ilu_type)
 #define hypre_ParILUDataNLU(ilu_data)                          ((ilu_data) -> nLU)
 #define hypre_ParILUDataNI(ilu_data)                           ((ilu_data) -> nI)
@@ -484,6 +487,13 @@ HYPRE_Int hypre_ILUSetupILUTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_
                                    hypre_CsrsvData ** matBLU_csrsvdata, hypre_CsrsvData ** matSLU_csrsvdata,
                                    hypre_CSRMatrix **BLUptr, hypre_ParCSRMatrix **matSptr,
                                    hypre_CSRMatrix **Eptr, hypre_CSRMatrix **Fptr, HYPRE_Int **A_fake_diag_ip, HYPRE_Int tri_solve);
+HYPRE_Int hypre_ILUSetupILDLTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol,
+                                    HYPRE_Int *perm, HYPRE_Int *qperm, HYPRE_Int n, HYPRE_Int nLU, hypre_GpuMatData * matL_des,
+                                    hypre_GpuMatData * matU_des,
+                                    hypre_CsrsvData ** matBLU_csrsvdata, hypre_CsrsvData ** matSLU_csrsvdata,
+                                    hypre_CSRMatrix **BLUptr, hypre_ParCSRMatrix **matSptr,
+                                    hypre_CSRMatrix **Eptr, hypre_CSRMatrix **Fptr, HYPRE_Int **A_fake_diag_ip, HYPRE_Int tri_solve,
+                                    char * mmfilename);
 HYPRE_Int hypre_ParILURAPReorder(hypre_ParCSRMatrix *A, HYPRE_Int *perm, HYPRE_Int *rqperm,
                                  hypre_ParCSRMatrix **A_pq);
 HYPRE_Int hypre_ILUSetupLDUtoCusparse(hypre_ParCSRMatrix *L, HYPRE_Real *D, hypre_ParCSRMatrix *U,

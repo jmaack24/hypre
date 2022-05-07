@@ -3420,6 +3420,7 @@ hypre_BoomerAMGSetup( void               *amg_vdata,
          HYPRE_ILUSetRuizIters(smoother[j], ilu_ruiz_iters);
          HYPRE_ILUSetLowerJacobiIters(smoother[j], ilu_lower_jacobi_iters);
          HYPRE_ILUSetUpperJacobiIters(smoother[j], ilu_upper_jacobi_iters);
+         HYPRE_ILUSetMatrixMarketFileName(smoother[j], hypre_ParAMGDataILUMatrixMarketFileName(amg_data));
          HYPRE_ILUSetTol(smoother[j], 0.);
          HYPRE_ILUSetDropThreshold(smoother[j], ilu_droptol);
          HYPRE_ILUSetLogging(smoother[j], 0);

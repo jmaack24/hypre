@@ -600,6 +600,17 @@ hypre_ILUSetUpperJacobiIters( void *ilu_vdata, HYPRE_Int upper_jacobi_iters )
    hypre_ParILUDataUpperJacobiIters(ilu_data) = upper_jacobi_iters;
    return hypre_error_flag;
 }
+
+/* HYPRE_BoomerAMGSetILUMatrixMarketFileName */
+HYPRE_Int
+hypre_ILUSetMatrixMarketFileName( void *ilu_vdata,
+                                  char *mmfilename)
+{
+   hypre_ParILUData   *ilu_data = (hypre_ParILUData*) ilu_vdata;
+   hypre_ParILUDataMatrixMarketFileName(ilu_data) = mmfilename;
+   return hypre_error_flag;
+}
+
 /* Set convergence tolerance for ILU solver */
 HYPRE_Int
 hypre_ILUSetTol( void *ilu_vdata, HYPRE_Real tol )
@@ -931,6 +942,14 @@ hypre_ILUWriteSolverParams(void *ilu_vdata)
          break;
       case 1:
          hypre_printf("Block Jacobi with ILUT \n");
+         hypre_printf("drop tolerance for B = %e, E&F = %e, S = %e \n", hypre_ParILUDataDroptol(ilu_data)[0],
+                      hypre_ParILUDataDroptol(ilu_data)[1], hypre_ParILUDataDroptol(ilu_data)[2]);
+         hypre_printf("Max nnz per row = %d \n", hypre_ParILUDataMaxRowNnz(ilu_data));
+         hypre_printf("Operator Complexity (Fill factor) = %f \n",
+                      hypre_ParILUDataOperatorComplexity(ilu_data));
+         break;
+      case 2:
+         hypre_printf("Block Jacobi with ILDLT \n");
          hypre_printf("drop tolerance for B = %e, E&F = %e, S = %e \n", hypre_ParILUDataDroptol(ilu_data)[0],
                       hypre_ParILUDataDroptol(ilu_data)[1], hypre_ParILUDataDroptol(ilu_data)[2]);
          hypre_printf("Max nnz per row = %d \n", hypre_ParILUDataMaxRowNnz(ilu_data));

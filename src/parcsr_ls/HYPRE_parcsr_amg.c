@@ -1325,6 +1325,17 @@ HYPRE_BoomerAMGSetILUUpperJacobiIters( HYPRE_Solver  solver,
 }
 
 /*--------------------------------------------------------------------------
+ * HYPRE_BoomerAMGSetILUMatrixMarketFileName
+ *--------------------------------------------------------------------------*/
+
+HYPRE_Int
+HYPRE_BoomerAMGSetILUMatrixMarketFileName (HYPRE_Solver solver,
+                                           char *mmfilename)
+{
+   return (hypre_BoomerAMGSetILUMatrixMarketFileName ( (void *) solver, mmfilename ) );
+}
+
+/*--------------------------------------------------------------------------
  * HYPRE_BoomerAMGSetILULocalReordering
  *--------------------------------------------------------------------------*/
 

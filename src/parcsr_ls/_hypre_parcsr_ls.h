@@ -164,6 +164,8 @@ typedef struct
    HYPRE_Int            ilu_ruiz_iters;
    HYPRE_Int            ilu_lower_jacobi_iters;
    HYPRE_Int            ilu_upper_jacobi_iters;
+   char                 mmfilename[251];
+
    HYPRE_Int            ilu_reordering_type;
 
    HYPRE_Int            fsai_max_steps;
@@ -414,6 +416,7 @@ typedef struct
 #define hypre_ParAMGDataILURuizIters(amg_data) ((amg_data)->ilu_ruiz_iters)
 #define hypre_ParAMGDataILULowerJacobiIters(amg_data) ((amg_data)->ilu_lower_jacobi_iters)
 #define hypre_ParAMGDataILUUpperJacobiIters(amg_data) ((amg_data)->ilu_upper_jacobi_iters)
+#define hypre_ParAMGDataILUMatrixMarketFileName(amg_data) ((amg_data)->mmfilename)
 #define hypre_ParAMGDataILUMaxIter(amg_data) ((amg_data)->ilu_max_iter)
 #define hypre_ParAMGDataILULocalReordering(amg_data) ((amg_data)->ilu_reordering_type)
 #define hypre_ParAMGDataFSAIMaxSteps(amg_data) ((amg_data)->fsai_max_steps)
@@ -1381,6 +1384,7 @@ HYPRE_Int HYPRE_BoomerAMGSetILUTriSolve( HYPRE_Solver solver, HYPRE_Int ilu_tri_
 HYPRE_Int HYPRE_BoomerAMGSetILURuizIters( HYPRE_Solver solver, HYPRE_Int ilu_ruiz_iters);
 HYPRE_Int HYPRE_BoomerAMGSetILULowerJacobiIters( HYPRE_Solver solver, HYPRE_Int ilu_lower_jacobi_iters);
 HYPRE_Int HYPRE_BoomerAMGSetILUUpperJacobiIters( HYPRE_Solver solver, HYPRE_Int ilu_upper_jacobi_iters);
+HYPRE_Int HYPRE_BoomerAMGSetILUMatrixMarketFileName (HYPRE_Solver solver, char *mmfilename);
 HYPRE_Int HYPRE_BoomerAMGSetILULocalReordering( HYPRE_Solver solver, HYPRE_Int ilu_reordering_type);
 HYPRE_Int HYPRE_BoomerAMGSetFSAIMaxSteps ( HYPRE_Solver solver, HYPRE_Int max_steps );
 HYPRE_Int HYPRE_BoomerAMGSetFSAIMaxStepSize ( HYPRE_Solver solver, HYPRE_Int max_step_size );
@@ -2022,6 +2026,7 @@ HYPRE_Int hypre_BoomerAMGSetILUTriSolve( void *data, HYPRE_Int ilu_tri_solve);
 HYPRE_Int hypre_BoomerAMGSetILURuizIters( void *data, HYPRE_Int ilu_ruiz_iters);
 HYPRE_Int hypre_BoomerAMGSetILULowerJacobiIters( void *data, HYPRE_Int ilu_lower_jacobi_iters);
 HYPRE_Int hypre_BoomerAMGSetILUUpperJacobiIters( void *data, HYPRE_Int ilu_upper_jacobi_iters);
+HYPRE_Int hypre_BoomerAMGSetILUMatrixMarketFileName ( void *data, char *mmfilename);
 HYPRE_Int hypre_BoomerAMGSetILUMaxIter( void *data, HYPRE_Int ilu_max_iter);
 HYPRE_Int hypre_BoomerAMGSetILUMaxRowNnz( void *data, HYPRE_Int ilu_max_row_nnz);
 HYPRE_Int hypre_BoomerAMGSetILULocalReordering( void *data, HYPRE_Int ilu_reordering_type);
@@ -3020,6 +3025,7 @@ HYPRE_Int hypre_ILUSetTriSolve( void *ilu_vdata, HYPRE_Int tri_solve );
 HYPRE_Int hypre_ILUSetRuizIters( void *ilu_vdata, HYPRE_Int ruiz_iters );
 HYPRE_Int hypre_ILUSetLowerJacobiIters( void *ilu_vdata, HYPRE_Int lower_jacobi_iters );
 HYPRE_Int hypre_ILUSetUpperJacobiIters( void *ilu_vdata, HYPRE_Int upper_jacobi_iters );
+HYPRE_Int hypre_ILUSetMatrixMarketFileName( void *ilu_vdata, char *mmfilename);
 HYPRE_Int hypre_ILUSetTol( void *ilu_vdata, HYPRE_Real tol );
 HYPRE_Int hypre_ILUSetup( void *ilu_vdata, hypre_ParCSRMatrix *A, hypre_ParVector    *f,
                           hypre_ParVector    *u );
@@ -3094,6 +3100,9 @@ HYPRE_Int hypre_ILUSetupILUKSymbolic(HYPRE_Int n, HYPRE_Int *A_diag_i, HYPRE_Int
 HYPRE_Int hypre_ILUSetupILUT(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol,
                              HYPRE_Int *permp, HYPRE_Int *qpermp, HYPRE_Int nLU, HYPRE_Int nI, hypre_ParCSRMatrix **Lptr,
                              HYPRE_Real** Dptr, hypre_ParCSRMatrix **Uptr, hypre_ParCSRMatrix **Sptr, HYPRE_Int **u_end);
+HYPRE_Int hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol,
+                                     HYPRE_Int *permp, HYPRE_Int *qpermp, HYPRE_Int nLU, HYPRE_Int nI, hypre_ParCSRMatrix **LDLptr,
+                                     MPI_Comm comm, char * mmfilename);
 HYPRE_Int hypre_ILUSetupILU0RAS(hypre_ParCSRMatrix *A, HYPRE_Int *perm, HYPRE_Int nLU,
                                 hypre_ParCSRMatrix **Lptr, HYPRE_Real** Dptr, hypre_ParCSRMatrix **Uptr);
 HYPRE_Int hypre_ILUSetupILUKRASSymbolic(HYPRE_Int n, HYPRE_Int *A_diag_i, HYPRE_Int *A_diag_j,

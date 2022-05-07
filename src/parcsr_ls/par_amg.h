@@ -146,6 +146,7 @@ typedef struct
    HYPRE_Int            ilu_ruiz_iters;
    HYPRE_Int            ilu_lower_jacobi_iters;
    HYPRE_Int            ilu_upper_jacobi_iters;
+   char                 *mmfilename;
    HYPRE_Int            ilu_reordering_type;
 
    HYPRE_Int            fsai_max_steps;
@@ -396,6 +397,7 @@ typedef struct
 #define hypre_ParAMGDataILURuizIters(amg_data) ((amg_data)->ilu_ruiz_iters)
 #define hypre_ParAMGDataILULowerJacobiIters(amg_data) ((amg_data)->ilu_lower_jacobi_iters)
 #define hypre_ParAMGDataILUUpperJacobiIters(amg_data) ((amg_data)->ilu_upper_jacobi_iters)
+#define hypre_ParAMGDataILUMatrixMarketFileName(amg_data) ((amg_data)->mmfilename)
 #define hypre_ParAMGDataILUMaxIter(amg_data) ((amg_data)->ilu_max_iter)
 #define hypre_ParAMGDataILULocalReordering(amg_data) ((amg_data)->ilu_reordering_type)
 #define hypre_ParAMGDataFSAIMaxSteps(amg_data) ((amg_data)->fsai_max_steps)

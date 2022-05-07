@@ -144,6 +144,7 @@ hypre_BoomerAMGCreate()
    HYPRE_Int    debug_flag;
 
    char     plot_file_name[251] = {0};
+   char     mm_file_name[251] = {0};
 
    /*-----------------------------------------------------------------------
     * Setup default values for parameters
@@ -364,6 +365,7 @@ hypre_BoomerAMGCreate()
    hypre_BoomerAMGSetILURuizIters(amg_data, ilu_ruiz_iters);
    hypre_BoomerAMGSetILULowerJacobiIters(amg_data, ilu_lower_jacobi_iters);
    hypre_BoomerAMGSetILUUpperJacobiIters(amg_data, ilu_upper_jacobi_iters);
+   hypre_BoomerAMGSetILUMatrixMarketFileName (amg_data, mm_file_name);
    hypre_BoomerAMGSetILUMaxIter(amg_data, ilu_max_iter);
    hypre_BoomerAMGSetILULocalReordering(amg_data, ilu_reordering_type);
    hypre_BoomerAMGSetFSAIMaxSteps(amg_data, fsai_max_steps);
@@ -4273,6 +4275,35 @@ hypre_BoomerAMGSetILUUpperJacobiIters( void     *data,
 
    return hypre_error_flag;
 }
+
+
+HYPRE_Int
+hypre_BoomerAMGSetILUMatrixMarketFileName( void       *data,
+                                           char *mm_file_name )
+{
+   hypre_ParAMGData  *amg_data = (hypre_ParAMGData*) data;
+   if (!amg_data)
+   {
+      hypre_error_in_arg(1);
+      return hypre_error_flag;
+   }
+   if ( strlen(mm_file_name) > 251 )
+   {
+      hypre_error_in_arg(2);
+      return hypre_error_flag;
+   }
+   if (strlen(mm_file_name) == 0 )
+   {
+	   hypre_sprintf(hypre_ParAMGDataILUMatrixMarketFileName(amg_data), "%s", "");
+   }
+   else
+   {
+      hypre_sprintf(hypre_ParAMGDataILUMatrixMarketFileName(amg_data), "%s", mm_file_name);
+   }
+
+   return hypre_error_flag;
+}
+
 
 HYPRE_Int
 hypre_BoomerAMGSetILUMaxIter( void     *data,

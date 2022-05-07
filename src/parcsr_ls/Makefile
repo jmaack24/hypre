@@ -152,6 +152,7 @@ CUFILES =\
  ads.c\
  ams.c\
  ame.c\
+ par_ildl_setup_device.c\
  par_ilu_setup_device.c\
  par_ilu_solve_device.c\
  par_ilu_solve_schur_gmres_device.c\

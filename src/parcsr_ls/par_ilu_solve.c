@@ -257,7 +257,7 @@ hypre_ILUSolve( void               *ilu_vdata,
       /* Do one solve on LUe=r */
       switch (ilu_type)
       {
-         case 0: case 1:
+         case 0: case 1: case 2:
 #if defined(HYPRE_USING_CUSPARSE) || defined(HYPRE_USING_ROCSPARSE)
             /* Apply GPU-accelerated LU solve */
             if ( tri_solve == 1 )
