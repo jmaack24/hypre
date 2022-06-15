@@ -402,7 +402,7 @@ HYPRE_Int print_L(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * csc_col_offsets, HYPRE_I
 }
 
 HYPRE_Int
-hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *tol,
+hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE_Real *tol,
                            HYPRE_Int *permp, HYPRE_Int *qpermp, HYPRE_Int nLU, HYPRE_Int nI, hypre_ParCSRMatrix **LDLptr,
                            MPI_Comm comm, char * mmfilename)
 {
@@ -463,6 +463,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
    HYPRE_Real * D_data = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_HOST);
    hypre_Memset(D_data, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_HOST);
 
+   HYPRE_Int lfil = fill_factor*nnz_A/m;
 
    /* Crout Grief ILDL
       L is going to generated in CSC form. Once finished, we'll convert to CSR
@@ -472,6 +473,9 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
    cudaEventRecord(start, 0);
    HYPRE_Int lastk=0;
 #endif
+
+   hypre_printf("%s %s %d : drop tolerance=%1.5g\n",__FILE__,__FUNCTION__,__LINE__,tol[0]);
+   hypre_printf("%s %s %d : lfil=%d\n",__FILE__,__FUNCTION__,__LINE__,lfil);
 
    /*************************************************************************/
    /* Initialize the first column                                           */
@@ -598,23 +602,35 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
           }
        }
 
-       /* lfil ... this doesn't really work */
        if (lfil>0) {
-           if (col_k_nnz>lfil) {
-               HYPRE_Real * temp5_data = hypre_CTAlloc(HYPRE_Real, lfil, HYPRE_MEMORY_HOST);
-               HYPRE_Int * temp5_rows = hypre_CTAlloc(HYPRE_Int, lfil, HYPRE_MEMORY_HOST);
-               thrust::stable_sort_by_key(thrust::host, temp4_data, temp4_data+col_k_nnz, temp4_rows);
-               i = 0;
-               for (j=col_k_nnz-1; j>=0; j--) {
-                   temp5_rows[i] = temp4_rows[j];
-                   temp5_data[i++] = temp4_data[j];
-               }
-               hypre_TMemcpy(temp4_data, temp5_data, HYPRE_Real, lfil, HYPRE_MEMORY_HOST, HYPRE_MEMORY_HOST);
-               hypre_TMemcpy(temp4_rows, temp5_rows, HYPRE_Int, lfil, HYPRE_MEMORY_HOST, HYPRE_MEMORY_HOST);
-               thrust::stable_sort_by_key(thrust::host, temp4_rows, temp4_rows+lfil, temp4_data);
-               hypre_TFree(temp5_data, HYPRE_MEMORY_HOST);
-               hypre_TFree(temp5_rows, HYPRE_MEMORY_HOST);
-               col_k_nnz = lfil;
+
+           if (col_k_nnz > lfil + 1) {
+
+	     /* Zero all but 'lfil' largest elements below the diagonal */
+
+	     if (temp4_rows[0] != k)
+	       {
+		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
+	       }
+
+	     /* Make sure diagonal value is not removed by skipping it -- should
+	      always be the first element in temp4_data and temp4_row */
+	     thrust::stable_sort_by_key(thrust::host,
+					temp4_data + 1,
+					temp4_data+col_k_nnz,
+					temp4_rows + 1,
+					thrust::greater<HYPRE_Real>());
+
+	     hypre_Memset(temp4_data + lfil + 1, 0, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
+	     hypre_Memset(temp4_rows + lfil + 1, n+1, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
+	     thrust::stable_sort_by_key(thrust::host, temp4_rows, temp4_rows+lfil, temp4_data);
+	     col_k_nnz = lfil + 1;
+
+	     if (temp4_rows[0] != k)
+	       {
+		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
+	       }
+
            }
        }
 
@@ -644,6 +660,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
        /* next, copy the data onto the end */
        for (i=0; i<col_k_nnz; ++i) {
            if (!std::isfinite(temp4_data[i])) {
+	     hypre_printf("%s %s %d : Found infinite value!\n",__FILE__,__FUNCTION__,__LINE__);
                exit(1);
            }
            Lcsc_rows[Lcsc_col_offsets[k]+i] = temp4_rows[i];
@@ -706,7 +723,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
    if (strcmp(mmfilename,"")!=0) {
       hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename);
       FILE * fout = fopen(mmfilename,"wt");
-      int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real symmetric\n%\n");
+      int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n");
       fprintf(fout, "%d %d %d\n", n, n, nnz_L);
       for (int i=0; i<n; ++i) {
 	     for (int j=Lcsc_col_offsets[i]; j<Lcsc_col_offsets[i+1]; ++j) {
