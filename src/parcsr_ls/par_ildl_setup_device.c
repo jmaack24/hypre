@@ -725,13 +725,15 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       FILE * fout = fopen(mmfilename,"wt");
       int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n");
       fprintf(fout, "%d %d %d\n", n, n, nnz_L);
-      for (int i=0; i<n; ++i) {
-	     for (int j=Lcsc_col_offsets[i]; j<Lcsc_col_offsets[i+1]; ++j) {
-		    if (i==Lcsc_rows[j])
-			   fprintf(fout,"%d %d %1.15e\n",Lcsc_rows[j]+1,i+1,D_data[i]);
-            else
-               fprintf(fout,"%d %d %1.15e\n",Lcsc_rows[j]+1,i+1,Lcsc_data[j]);
-         }
+      for (int i=0; i<n; ++i)
+      {
+	  for (int j=Lcsc_col_offsets[i]; j<Lcsc_col_offsets[i+1]; ++j)
+	  {
+	      if (i==Lcsc_rows[j])
+		  fprintf(fout,"%d %d %1.15e\n",Lcsc_rows[j]+1,i+1,D_data[i]);
+	      else
+		  fprintf(fout,"%d %d %1.15e\n",Lcsc_rows[j]+1,i+1,Lcsc_data[j]);
+	  }
       }
       fclose(fout);
    }
@@ -767,12 +769,41 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       for (j = Lcsc_col_offsets[i]+1; j < Lcsc_col_offsets[i+1]; j++)
       {
          LDL_diag_j[pos] = Lcsc_rows[j];
-         LDL_diag_data[pos++] = Lcsc_data[j];
+         LDL_diag_data[pos++] = D_data[i] * Lcsc_data[j];
       }
    }
    LDL_diag_i[n] = pos;
 
    hypre_assert(pos == nnz_LDL);
+
+   /**** BEGIN ADDED by JM ****/
+   /* attempt to write the factored L/D to a file */
+   if (strcmp(mmfilename,"")!=0) {
+
+     char *buf = NULL;
+     asprintf(&buf, "LDL_LU_FORM_%s", mmfilename);
+
+     if (buf != NULL)
+     {
+       hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename);
+       FILE * fout = fopen(buf,"wt");
+       int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n");
+       fprintf(fout, "%d %d %d\n", n, n, nnz_LDL);
+       for (int i=0; i<n; ++i)
+       {
+	 for (int j=LDL_diag_i[i]; j<LDL_diag_i[i+1]; ++j)
+	 {
+	   fprintf(fout,"%d %d %1.15e\n", i, LDL_diag_j[j], LDL_diag_data[j]);
+	 }
+       }
+       fclose(fout);
+     }
+     else
+     {
+       hypre_printf("ERROR while dumping LU form of LDL matrix!!!\n");
+     }
+   }
+   /**** END ADDED by JM ****/
 
 #ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
