@@ -767,7 +767,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       for (j = Lcsc_col_offsets[i]+1; j < Lcsc_col_offsets[i+1]; j++)
       {
          LDL_diag_j[pos] = Lcsc_rows[j];
-         LDL_diag_data[pos++] = Lcsc_data[j];
+         LDL_diag_data[pos++] = Lcsc_data[j] * D_data[i];
+         //LDL_diag_data[pos++] = Lcsc_data[j]; 
       }
    }
    LDL_diag_i[n] = pos;
