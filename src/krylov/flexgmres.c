@@ -696,7 +696,7 @@ hypre_FlexGMRESSolve(void  *fgmres_vdata,
          {
             if ( print_level > 0 && my_id == 0)
             {
-               hypre_printf("false convergence 2\n");
+	      hypre_printf("false convergence 2\nActual Residual: %e  Tolerance: %e\n", r_norm, epsilon);
             }
             (*(fgmres_functions->CopyVector))(r, p[0]);
             i = 0;

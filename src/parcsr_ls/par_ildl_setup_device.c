@@ -171,6 +171,7 @@ hypre_ILUSetupILDLTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol
    /* only analyse when nacessary */
    if ( nLU > 0 )
    {
+     hypre_printf("%s %s %d Tri_Solve Value: %d\n",__FILE__,__FUNCTION__,__LINE__, tri_solve);
       /* Analysis of BILU */
       if (tri_solve)
       {
@@ -474,8 +475,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    HYPRE_Int lastk=0;
 #endif
 
+#ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d : drop tolerance=%1.5g\n",__FILE__,__FUNCTION__,__LINE__,tol[0]);
    hypre_printf("%s %s %d : lfil=%d\n",__FILE__,__FUNCTION__,__LINE__,lfil);
+#endif
 
    /*************************************************************************/
    /* Initialize the first column                                           */
@@ -574,6 +577,11 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
            }
        }
 
+       if (fabs(D_data[k]) < 1e-8 || fabs(D_data[k]) > 1e10)
+	 {
+	   hypre_printf("%s %s %d : col=%d, diag=%1.16g\n",__FILE__,__FUNCTION__,__LINE__,k,D_data[k]);
+	 }
+
 #ifdef HYPRE_ILDL_DEBUG
        printf("\n");
        for (i=0;i<n;++i) hypre_printf("%s %s %d : col=%d, row=%d, temp1=%1.16g  avect=%1.16g  Acsc=%1.16g  temp3=%1.16g, diag=%1.16g\n",__FILE__,__FUNCTION__,__LINE__,i,k,temp1[i],avect[i],temp2[i],temp3[i],D_data[k]);
@@ -613,8 +621,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
 	       }
 
-	     /* Make sure diagonal value is not removed by skipping it -- should
-	      always be the first element in temp4_data and temp4_row */
+	     /* Make sure diagonal value is not removed by skipping it -- should */
+	     /* always be the first element in temp4_data and temp4_row */
 	     thrust::stable_sort_by_key(thrust::host,
 					temp4_data + 1,
 					temp4_data+col_k_nnz,
@@ -645,10 +653,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
            Lcsc_rows = hypre_TReAlloc_v2(Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_HOST);
            Lcsc_data = hypre_TReAlloc_v2(Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_HOST);
            capacity = capacity + nnz_A;
-           //#ifdef HYPRE_ILDL_DEBUG
+#ifdef HYPRE_ILDL_DEBUG
            hypre_printf("%s %s %d : k=%d, capacity : before=%d, after=%d\n",__FILE__,__FUNCTION__,__LINE__,k,capacity-nnz_A,capacity);
            fflush(NULL);
-           //#endif
+#endif
        }
 
        /* exclusive scan */
@@ -721,7 +729,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
    /* attempt to write the factored L/D to a file */
    if (strcmp(mmfilename,"")!=0) {
-      hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename);
+     hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename);
       FILE * fout = fopen(mmfilename,"wt");
       int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n");
       fprintf(fout, "%d %d %d\n", n, n, nnz_L);
@@ -750,10 +758,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    HYPRE_Int * LDL_diag_j = hypre_TAlloc(HYPRE_Int, nnz_LDL, HYPRE_MEMORY_HOST);
    HYPRE_Real * LDL_diag_data = hypre_TAlloc(HYPRE_Real, nnz_LDL, HYPRE_MEMORY_HOST);
 
-   //#ifdef HYPRE_ILDL_DEBUG
+#ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d : n=%d, nnz_L=%d, nnz_LDL=%d\n",__FILE__,__FUNCTION__,__LINE__,n,nnz_L,nnz_LDL);
    fflush(NULL);
-   //#endif
+#endif
 
    HYPRE_Int pos = 0;
    for (i = 0; i < n; i++)
@@ -776,34 +784,34 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
    hypre_assert(pos == nnz_LDL);
 
-   /**** BEGIN ADDED by JM ****/
-   /* attempt to write the factored L/D to a file */
-   if (strcmp(mmfilename,"")!=0) {
+   /* /\**** BEGIN ADDED by JM ****\/ */
+   /* /\* attempt to write the factored L/D to a file *\/ */
+   /* if (strcmp(mmfilename,"")!=0) { */
 
-     char *buf = NULL;
-     asprintf(&buf, "LDL_LU_FORM_%s", mmfilename);
+   /*   /\* char *buf = NULL; *\/ */
+   /*   /\* asprintf(&buf, "LDL_LU_FORM_%s", mmfilename); *\/ */
 
-     if (buf != NULL)
-     {
-       hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename);
-       FILE * fout = fopen(buf,"wt");
-       int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n");
-       fprintf(fout, "%d %d %d\n", n, n, nnz_LDL);
-       for (int i=0; i<n; ++i)
-       {
-	 for (int j=LDL_diag_i[i]; j<LDL_diag_i[i+1]; ++j)
-	 {
-	   fprintf(fout,"%d %d %1.15e\n", i, LDL_diag_j[j], LDL_diag_data[j]);
-	 }
-       }
-       fclose(fout);
-     }
-     else
-     {
-       hypre_printf("ERROR while dumping LU form of LDL matrix!!!\n");
-     }
-   }
-   /**** END ADDED by JM ****/
+   /*   if (true) */
+   /*   { */
+   /*     /\* hypre_printf("%s %s %d : mmfilename=%s\n",__FILE__,__FUNCTION__,__LINE__,mmfilename); *\/ */
+   /*     FILE * fout = fopen("LDL_LU_form.mtx","wt"); */
+   /*     int ret_code = fprintf(fout, "%%%%MatrixMarket matrix coordinate real general\n%\n"); */
+   /*     fprintf(fout, "%d %d %d\n", n, n, nnz_LDL); */
+   /*     for (int i=0; i<n; ++i) */
+   /*     { */
+   /* 	 for (int j=LDL_diag_i[i]; j<LDL_diag_i[i+1]; ++j) */
+   /* 	 { */
+   /* 	   fprintf(fout,"%d %d %1.15e\n", i+1, LDL_diag_j[j]+1, LDL_diag_data[j]); */
+   /* 	 } */
+   /*     } */
+   /*     fclose(fout); */
+   /*   } */
+   /*   else */
+   /*   { */
+   /*     hypre_printf("ERROR while dumping LU form of LDL matrix!!!\n"); */
+   /*   } */
+   /* } */
+   /* /\**** END ADDED by JM ****\/ */
 
 #ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
