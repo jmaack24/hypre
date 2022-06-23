@@ -347,13 +347,12 @@ __global__ void device_hypre_LCSC_RowKtimesDenseVector(
    int tidx = blockIdx.x*blockDim.x + threadIdx.x;
 
    if(tidx < k) {
-      for (j=csc_col_offsets[tidx]; j<csc_col_offsets[tidx+1]; ++j) {
+      for (HYPRE_Int j=csc_col_offsets[tidx]; j<csc_col_offsets[tidx+1]; ++j) {
           if (csc_rows[j]==k) {
             y[tidx] = csc_data[j]*x[tidx];
          }
       }
    }
-
 }
 
 HYPRE_Int hypre_LCSCtimesDenseVector(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * csc_rows, HYPRE_Int * csc_col_offsets, HYPRE_Real * csc_data, HYPRE_Real * x, HYPRE_Real * y)
@@ -733,10 +732,16 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        /************/
 
        /* 1) elementwise : temp1 =  L[k,:k] .* Diag[:k] */
-       hypre_LCSC_RowKtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, D_data, temp1);
+       //hypre_LCSC_RowKtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, D_data, temp1);
 
        nThreads = 128;
        nBlocks = (k + nThreads-1)/nThreads;
+
+      hypre_TMemcpy(d_Lcsc_rows, Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+      hypre_TMemcpy(d_Lcsc_data, Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+      hypre_TMemcpy(d_Lcsc_col_offsets, Lcsc_col_offsets, HYPRE_Int, n + 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+      hypre_TMemcpy(d_D_data, D_data, HYPRE_Real, n, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+
        device_hypre_LCSC_RowKtimesDenseVector<<<nBlocks, nThreads>>>(
             n, 
             k, 
@@ -745,6 +750,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_Lcsc_data, 
             d_D_data, 
             d_temp1);
+
+      hypre_TMemcpy(temp1, d_temp1, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* 2) normal spmv : avect =  L[k:n,:k] * temp1 */
        hypre_LCSCtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, temp1, avect);
