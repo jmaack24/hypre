@@ -611,8 +611,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    int nThreads = 128;
    int nBlocks = (Acsc_col_offsets[1] + nThreads-1)/nThreads;
 
-   HYPRE_Int * Lcsc_col_count_debug = hypre_CTAlloc(HYPRE_Int, n, HYPRE_MEMORY_HOST);
-
    initFirstDiagCol<<<nBlocks, nThreads>>>
       (  d_Acsc_rows,
          d_Acsc_data,
@@ -635,7 +633,20 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    for (i=1; i<n+1; ++i)
        Lcsc_col_offsets[i] = Lcsc_col_count[i-1]+Lcsc_col_offsets[i-1];
 
+   // GPU version of the same exclusive scan (we implement it with an inclusive scan)
+   hypre_TMemcpy(d_Lcsc_col_offsets, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+   thrust::inclusive_scan(
+      thrust::device,
+      d_Lcsc_col_count, 
+      d_Lcsc_col_count + n,
+      d_Lcsc_col_offsets + 1,
+      thrust::plus<HYPRE_Int>()
+      );
+
+   hypre_TMemcpy(Lcsc_col_offsets, d_Lcsc_col_offsets, HYPRE_Int, n + 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
    HYPRE_Int Lcsc_nnz = Lcsc_col_offsets[1];
+   hypre_TMemcpy(&Lcsc_nnz, d_Lcsc_col_offsets + 1, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
 #ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d : Lcsc_nnz=%d\n",__FILE__,__FUNCTION__,__LINE__,Lcsc_nnz);
