@@ -405,6 +405,25 @@ HYPRE_Int hypre_LCSCSparseToDenseColumnVector(HYPRE_Int n, HYPRE_Int k, HYPRE_In
    return hypre_error_flag;
 }
 
+__global__ void device_hypre_LCSCSparseToDenseColumnVector(
+      HYPRE_Int n, 
+      HYPRE_Int k, 
+      HYPRE_Int * csc_col_offsets, 
+      HYPRE_Int * csc_rows, 
+      HYPRE_Real * csc_data, 
+      HYPRE_Real * x)
+{
+   HYPRE_Int diff = csc_col_offsets[k + 1] - csc_col_offsets[k];
+
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+   if(tidx < diff) {
+      HYPRE_Int j = csc_col_offsets[k] + tidx;
+      if (csc_rows[j]>=k) {
+         x[csc_rows[j]] = csc_data[j];
+      }
+   }   
+}
+
 HYPRE_Int hypre_DenseVectorDropEntriesAfterK(HYPRE_Int n, HYPRE_Int k,  HYPRE_Real * x, HYPRE_Real tol)
 {
    /* compute norm below the diagonal. Not sure if I should include unit diagonal or not */
@@ -777,7 +796,23 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
         */
 
        /* Take sparse column to dense below the diagonal */
-       hypre_LCSCSparseToDenseColumnVector(n, k, Acsc_col_offsets, Acsc_rows, Acsc_data, temp2);
+       //hypre_LCSCSparseToDenseColumnVector(n, k, Acsc_col_offsets, Acsc_rows, Acsc_data, temp2);
+
+      nThreads = 128;
+      HYPRE_Int diff = 
+            Acsc_col_offsets[k+1]
+            - Acsc_col_offsets[k];
+
+      nBlocks = (diff + nThreads-1)/nThreads;
+      device_hypre_LCSCSparseToDenseColumnVector<<<nBlocks, nThreads>>>(
+         n, 
+         k, 
+         d_Acsc_col_offsets, 
+         d_Acsc_rows, 
+         d_Acsc_data, 
+         d_temp2);
+
+      hypre_TMemcpy(temp2, d_temp2, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* scale by the diagonal */
        D_data[k] = temp2[k]-avect[k];
