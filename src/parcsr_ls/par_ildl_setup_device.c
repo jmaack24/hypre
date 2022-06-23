@@ -440,7 +440,7 @@ __global__ void initFirstDiagCol(
    if(0 < tidx && tidx < range) {
       HYPRE_Real temp = Acsc_data[tidx]/d0;
       if (fabs(temp)>=tol * mag) {
-         HYPRE_Int slot = atomicAdd(&count, 1) - 1;
+         HYPRE_Int slot = atomicAdd(&count, 1);
          Lcsc_rows[slot] = Acsc_rows[tidx];
          Lcsc_data[slot] = temp; 
       }
