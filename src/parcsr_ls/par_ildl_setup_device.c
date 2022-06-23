@@ -529,6 +529,32 @@ __global__ void initFirstDiagCol(
    }*/
 }
 
+__global__ void scale_by_diagonal(
+   HYPRE_Int n,
+   HYPRE_Int k,
+   HYPRE_Real * avect,
+   HYPRE_Real * temp2,
+   HYPRE_Real * temp3,
+   HYPRE_Real * D_data
+   ) {
+   /* scale by the diagonal */
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+
+   if(tidx == 0) {
+      D_data[k] = temp2[k]-avect[k];
+   }
+
+   __syncthreads();
+
+   if(tidx < n - k) {
+      HYPRE_Int j = tidx + k;
+      HYPRE_Real t = temp2[j]-avect[j];
+      if (t!=0) {
+         temp3[j]=t/D_data[k];
+      }
+   }
+}
+
 HYPRE_Int
 hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE_Real *tol,
                            HYPRE_Int *permp, HYPRE_Int *qpermp, HYPRE_Int nLU, HYPRE_Int nI, hypre_ParCSRMatrix **LDLptr,
@@ -788,7 +814,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
       hypre_TMemcpy(avect, d_avect, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
-
        /* 3) L[k:n,k] = A[k:n,k] - avect
  
          A is sparse csc, avect has full storage but it is sparsely populated
@@ -798,11 +823,11 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        /* Take sparse column to dense below the diagonal */
        //hypre_LCSCSparseToDenseColumnVector(n, k, Acsc_col_offsets, Acsc_rows, Acsc_data, temp2);
 
-      nThreads = 128;
       HYPRE_Int diff = 
             Acsc_col_offsets[k+1]
             - Acsc_col_offsets[k];
 
+      nThreads = 128;
       nBlocks = (diff + nThreads-1)/nThreads;
       device_hypre_LCSCSparseToDenseColumnVector<<<nBlocks, nThreads>>>(
          n, 
@@ -815,13 +840,27 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       hypre_TMemcpy(temp2, d_temp2, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* scale by the diagonal */
-       D_data[k] = temp2[k]-avect[k];
+       /*D_data[k] = temp2[k]-avect[k];
        for (j=k; j<n; ++j) {
            HYPRE_Real t = temp2[j]-avect[j];
            if (t!=0) {
                temp3[j]=t/D_data[k];
            }
-       }
+       }*/
+
+      diff = n - k;
+      nThreads = 128;
+      nBlocks = (diff + nThreads-1)/nThreads;
+      scale_by_diagonal<<<nBlocks, nThreads>>>(
+         n,
+         k,
+         d_avect,
+         d_temp2,
+         d_temp3,
+         d_D_data);
+
+      hypre_TMemcpy(temp3, d_temp3, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      hypre_TMemcpy(D_data, d_D_data, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
 #ifdef HYPRE_ILDL_DEBUG
        printf("\n");
