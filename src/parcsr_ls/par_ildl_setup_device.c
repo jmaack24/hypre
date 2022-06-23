@@ -4,6 +4,9 @@
  *
  * SPDX-License-Identifier: (Apache-2.0 OR MIT)
  ******************************************************************************/
+
+#include <cmath>
+
 #include "_hypre_parcsr_ls.h"
 #include "_hypre_utilities.hpp"
 #include "par_ilu.h"
@@ -402,6 +405,11 @@ HYPRE_Int print_L(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * csc_col_offsets, HYPRE_I
    return hypre_error_flag;
 }
 
+bool abs_greater(const HYPRE_Real& a, const HYPRE_Real& b)
+{
+  return abs(a) > abs(b);
+}
+
 HYPRE_Int
 hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE_Real *tol,
                            HYPRE_Int *permp, HYPRE_Int *qpermp, HYPRE_Int nLU, HYPRE_Int nI, hypre_ParCSRMatrix **LDLptr,
@@ -579,7 +587,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
        if (fabs(D_data[k]) < 1e-8 || fabs(D_data[k]) > 1e10)
 	 {
-	   hypre_printf("%s %s %d : col=%d, diag=%1.16g\n",__FILE__,__FUNCTION__,__LINE__,k,D_data[k]);
+	   hypre_printf("%s %s %d : col=%d, diag=%1.16e\n",__FILE__,__FUNCTION__,__LINE__,k,D_data[k]);
 	 }
 
 #ifdef HYPRE_ILDL_DEBUG
@@ -614,7 +622,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
            if (col_k_nnz > lfil + 1) {
 
-	     /* Zero all but 'lfil' largest elements below the diagonal */
+	     /* Zero all but 'lfil' largest elements (in magnitude) below */
+	     /* the diagonal */
 
 	     if (temp4_rows[0] != k)
 	       {
@@ -627,7 +636,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 					temp4_data + 1,
 					temp4_data+col_k_nnz,
 					temp4_rows + 1,
-					thrust::greater<HYPRE_Real>());
+					/* thrust::greater<HYPRE_Real>()); */
+					abs_greater);
 
 	     hypre_Memset(temp4_data + lfil + 1, 0, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
 	     hypre_Memset(temp4_rows + lfil + 1, n+1, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
