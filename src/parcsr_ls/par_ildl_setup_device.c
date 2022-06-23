@@ -622,6 +622,19 @@ __global__ void create_short_buffer(
    }
 }
 
+__global__ void get_adjacent_diff(
+   HYPRE_Int k,
+   HYPRE_Int * Acsc_col_offsets,
+   HYPRE_Int * result
+) {
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+   if(tidx == 0) {
+      *result = 
+            Acsc_col_offsets[k+1]
+            - Acsc_col_offsets[k];
+   }
+}
+
 /*
  * This kernel could probably be replaced with a
  * simple Memcpy... 
@@ -689,20 +702,17 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    d_Acsc_rows = hypre_CSRMatrixJ(AT_diag);
 
    /* Move the data back to the host */
-   HYPRE_Int * Acsc_col_offsets = hypre_CTAlloc(HYPRE_Int, n+1, HYPRE_MEMORY_HOST);
-   HYPRE_Int * Acsc_rows = hypre_CTAlloc(HYPRE_Int, nnz_A, HYPRE_MEMORY_HOST);
-   HYPRE_Real * Acsc_data = hypre_CTAlloc(HYPRE_Real, nnz_A, HYPRE_MEMORY_HOST);
-   hypre_TMemcpy(Acsc_col_offsets, d_Acsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-   hypre_TMemcpy(Acsc_rows, d_Acsc_rows, HYPRE_Int, nnz_A, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-   hypre_TMemcpy(Acsc_data, d_Acsc_data, HYPRE_Real, nnz_A, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //HYPRE_Int * Acsc_col_offsets = hypre_CTAlloc(HYPRE_Int, n+1, HYPRE_MEMORY_HOST);
+   //HYPRE_Int * Acsc_rows = hypre_CTAlloc(HYPRE_Int, nnz_A, HYPRE_MEMORY_HOST);
+   //HYPRE_Real * Acsc_data = hypre_CTAlloc(HYPRE_Real, nnz_A, HYPRE_MEMORY_HOST);
+   //hypre_TMemcpy(Acsc_col_offsets, d_Acsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Acsc_rows, d_Acsc_rows, HYPRE_Int, nnz_A, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Acsc_data, d_Acsc_data, HYPRE_Real, nnz_A, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
    //hypre_CSRMatrixDestroy(AT_diag);
 
    /* set the initial capacity */
    HYPRE_Int capacity = nnz_A;
-   HYPRE_Int * Lcsc_col_offsets = hypre_CTAlloc(HYPRE_Int, n+1, HYPRE_MEMORY_HOST);
-   HYPRE_Int * Lcsc_rows = hypre_CTAlloc(HYPRE_Int, capacity, HYPRE_MEMORY_HOST);
-   HYPRE_Real * Lcsc_data = hypre_CTAlloc(HYPRE_Real, capacity, HYPRE_MEMORY_HOST);
 
    // GPU copy of this data structure
    HYPRE_Int * d_Lcsc_col_offsets = hypre_CTAlloc(HYPRE_Int, n+1, HYPRE_MEMORY_DEVICE);
@@ -785,15 +795,17 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    {
       // TODO: Should fully port this conditional
       // branch to the GPU 
-       for (i=1; i<Acsc_col_offsets[1]; ++i) {
-           Lcsc_rows[i] = Acsc_rows[i];
-           Lcsc_data[i] = Acsc_data[i]/D_data[0];
-       }
-       Lcsc_col_count[0] = Acsc_col_offsets[1];
+      // for (i=1; i<Acsc_col_offsets[1]; ++i) {
+      //     Lcsc_rows[i] = Acsc_rows[i];
+      //     Lcsc_data[i] = Acsc_data[i]/D_data[0];
+      // }
+      // Lcsc_col_count[0] = Acsc_col_offsets[1];
    }
 
    nThreads = 128;
-   nBlocks = (Acsc_col_offsets[1] + nThreads-1)/nThreads;
+   HYPRE_Int offset;
+   hypre_TMemcpy(&offset, d_Acsc_col_offsets + 1, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   nBlocks = (offset + nThreads-1)/nThreads;
 
    initFirstDiagCol<<<nBlocks, nThreads>>>
       (  d_Acsc_rows,
@@ -802,13 +814,14 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_Lcsc_col_count,
          d_Lcsc_rows, 
          d_Lcsc_data,
-         Acsc_col_offsets[1],
+         offset,
          tol[0]
          );
 
-   hypre_TMemcpy(Lcsc_col_count, d_Lcsc_col_count, HYPRE_Int, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-   hypre_TMemcpy(Lcsc_rows, d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-   hypre_TMemcpy(Lcsc_data, d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Lcsc_col_count, d_Lcsc_col_count, HYPRE_Int, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Lcsc_rows, d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Lcsc_data, d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
    //printf("%d, %d", Lcsc_col_count_debug[0], Lcsc_col_count[0]);
    //hypre_TMemcpy(d_Lcsc_data, &one_real, HYPRE_Real, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
 
@@ -828,7 +841,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       thrust::plus<HYPRE_Int>()
       );
 
-   hypre_TMemcpy(Lcsc_col_offsets, d_Lcsc_col_offsets, HYPRE_Int, n + 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   //hypre_TMemcpy(Lcsc_col_offsets, d_Lcsc_col_offsets, HYPRE_Int, n + 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
    //HYPRE_Int Lcsc_nnz = Lcsc_col_offsets[1];
    HYPRE_Int Lcsc_nnz;
@@ -850,6 +863,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    HYPRE_Real * d_temp3 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
 
    HYPRE_Int * d_col_k_nnz = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
+   HYPRE_Int * d_adj_diff = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
 
    /*************************************************************************/
    /* Loop over the remaining columns                                       */
@@ -892,7 +906,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_D_data, 
             d_temp1);
 
-      hypre_TMemcpy(temp1, d_temp1, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp1, d_temp1, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* 2) normal spmv : avect =  L[k:n,:k] * temp1 */
        //hypre_LCSCtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, temp1, avect);
@@ -908,7 +922,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_temp1, 
             d_avect);
 
-      hypre_TMemcpy(avect, d_avect, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(avect, d_avect, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* 3) L[k:n,k] = A[k:n,k] - avect
  
@@ -919,9 +933,14 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        /* Take sparse column to dense below the diagonal */
        //hypre_LCSCSparseToDenseColumnVector(n, k, Acsc_col_offsets, Acsc_rows, Acsc_data, temp2);
 
-      HYPRE_Int diff = 
-            Acsc_col_offsets[k+1]
-            - Acsc_col_offsets[k];
+      get_adjacent_diff<<<1,1>>>(
+         k,
+         d_Acsc_col_offsets,
+         d_adj_diff 
+      );
+
+      HYPRE_Int diff;
+      hypre_TMemcpy(&diff, d_adj_diff, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
       nThreads = 128;
       nBlocks = (diff + nThreads-1)/nThreads;
@@ -933,7 +952,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_Acsc_data, 
          d_temp2);
 
-      hypre_TMemcpy(temp2, d_temp2, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp2, d_temp2, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* scale by the diagonal */
        /*D_data[k] = temp2[k]-avect[k];
@@ -955,15 +974,17 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_temp3,
          d_D_data);
 
-      hypre_TMemcpy(temp3, d_temp3, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-      hypre_TMemcpy(D_data, d_D_data, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp3, d_temp3, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(D_data, d_D_data, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
+   /*
 #ifdef HYPRE_ILDL_DEBUG
        printf("\n");
        for (i=0;i<n;++i) hypre_printf("%s %s %d : col=%d, row=%d, temp1=%1.16g  avect=%1.16g  Acsc=%1.16g  temp3=%1.16g, diag=%1.16g\n",__FILE__,__FUNCTION__,__LINE__,i,k,temp1[i],avect[i],temp2[i],temp3[i],D_data[k]);
        printf("\n");
        fflush(NULL);
 #endif
+   */
 
        /* 4) Drop tolerance */
       //HYPRE_Int col_k_nnz = hypre_DenseVectorDropEntriesAfterK(n, k,  temp3, tol[0]);
@@ -980,7 +1001,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             );
 
       HYPRE_Int col_k_nnz; 
-      hypre_TMemcpy(temp3, d_temp3, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp3, d_temp3, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
       hypre_TMemcpy(&col_k_nnz, d_col_k_nnz, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
 #ifdef HYPRE_ILDL_DEBUG
@@ -1025,8 +1046,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_temp4_data,
             thrust::less<HYPRE_Int>());
 
-      hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-      hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
 
        if (lfil>0) {
@@ -1074,8 +1095,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
 	       }
 
-         hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-         hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+         //hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+         //hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
            }
        }
@@ -1088,8 +1109,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
        if (Lcsc_nnz>capacity) {
            /* reallocate */
-           Lcsc_rows = hypre_TReAlloc_v2(Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_HOST);
-           Lcsc_data = hypre_TReAlloc_v2(Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_HOST);
+           //Lcsc_rows = hypre_TReAlloc_v2(Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_HOST);
+           //Lcsc_data = hypre_TReAlloc_v2(Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_HOST);
            d_Lcsc_rows = hypre_TReAlloc_v2(d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
            d_Lcsc_data = hypre_TReAlloc_v2(d_Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
 
@@ -1112,7 +1133,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       hypre_TMemcpy(d_Lcsc_col_count + k, 
             &col_k_nnz, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
 
-
       // GPU version of the same exclusive scan (we implement it with an inclusive scan)
       hypre_TMemcpy(d_Lcsc_col_offsets, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
       thrust::inclusive_scan(
@@ -1123,8 +1143,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          thrust::plus<HYPRE_Int>()
          );
 
-      hypre_TMemcpy(Lcsc_col_offsets, 
-            d_Lcsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(Lcsc_col_offsets, 
+      //      d_Lcsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
       // TODO: Do we really need the expensive
       // prefix scan above^^^^ ?
@@ -1149,11 +1169,11 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_Lcsc_rows,
          d_Lcsc_data);
 
-      hypre_TMemcpy(Lcsc_rows, 
-            d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(Lcsc_rows, 
+      //      d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
-      hypre_TMemcpy(Lcsc_data, 
-            d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      //hypre_TMemcpy(Lcsc_data, 
+      //      d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        hypre_TFree(temp4_data, HYPRE_MEMORY_HOST);
        hypre_TFree(temp4_rows, HYPRE_MEMORY_HOST);
@@ -1176,14 +1196,17 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    // This last post-processing step is best
    // done on the CPU 
 
+   HYPRE_Int * Lcsc_col_offsets = hypre_CTAlloc(HYPRE_Int, n+1, HYPRE_MEMORY_HOST);
+   HYPRE_Int * Lcsc_rows = hypre_CTAlloc(HYPRE_Int, capacity, HYPRE_MEMORY_HOST);
+   HYPRE_Real * Lcsc_data = hypre_CTAlloc(HYPRE_Real, capacity, HYPRE_MEMORY_HOST);
+
    hypre_TMemcpy(Lcsc_col_offsets, 
          d_Lcsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-
    hypre_TMemcpy(Lcsc_rows, 
          d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-
    hypre_TMemcpy(Lcsc_data, 
          d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+   hypre_TMemcpy(D_data, d_D_data, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
    hypre_TFree(temp1, HYPRE_MEMORY_HOST);
    hypre_TFree(temp2, HYPRE_MEMORY_HOST);
@@ -1321,9 +1344,9 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    hypre_CSRMatrixDestroy(Lcsr);
 
    /* Free stuff */
-   hypre_TFree(Acsc_col_offsets, HYPRE_MEMORY_HOST);
-   hypre_TFree(Acsc_rows, HYPRE_MEMORY_HOST);
-   hypre_TFree(Acsc_data, HYPRE_MEMORY_HOST);
+   //hypre_TFree(Acsc_col_offsets, HYPRE_MEMORY_HOST);
+   //hypre_TFree(Acsc_rows, HYPRE_MEMORY_HOST);
+   //hypre_TFree(Acsc_data, HYPRE_MEMORY_HOST);
    hypre_TFree(Lcsc_col_offsets, HYPRE_MEMORY_HOST);
    hypre_TFree(Lcsc_rows, HYPRE_MEMORY_HOST);
    hypre_TFree(Lcsc_data, HYPRE_MEMORY_HOST);
