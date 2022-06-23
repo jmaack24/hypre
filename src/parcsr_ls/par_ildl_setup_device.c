@@ -335,6 +335,27 @@ HYPRE_Int hypre_LCSC_RowKtimesDenseVector(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * 
    return hypre_error_flag;
 }
 
+__global__ void device_hypre_LCSC_RowKtimesDenseVector(
+      HYPRE_Int n, 
+      HYPRE_Int k, 
+      HYPRE_Int * csc_rows, 
+      HYPRE_Int * csc_col_offsets, 
+      HYPRE_Real * csc_data, 
+      HYPRE_Real * x, 
+      HYPRE_Real * y) {
+
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+
+   if(tidx < k) {
+      for (j=csc_col_offsets[tidx]; j<csc_col_offsets[tidx+1]; ++j) {
+          if (csc_rows[j]==k) {
+            y[tidx] = csc_data[j]*x[tidx];
+         }
+      }
+   }
+
+}
+
 HYPRE_Int hypre_LCSCtimesDenseVector(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * csc_rows, HYPRE_Int * csc_col_offsets, HYPRE_Real * csc_data, HYPRE_Real * x, HYPRE_Real * y)
 {
     HYPRE_Int i=0, j=0, ii=0;
@@ -347,6 +368,31 @@ HYPRE_Int hypre_LCSCtimesDenseVector(HYPRE_Int n, HYPRE_Int k, HYPRE_Int * csc_r
         }
     }
    return hypre_error_flag;
+}
+
+__global__ void device_hypre_LCSCtimesDenseVector(
+      HYPRE_Int n, 
+      HYPRE_Int k, 
+      HYPRE_Int * csc_rows, 
+      HYPRE_Int * csc_col_offsets, 
+      HYPRE_Real * csc_data, 
+      HYPRE_Real * x, 
+      HYPRE_Real * y)
+{
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+
+   // There might be more efficient ways to parallelize this,
+   // but this is okay for a first pass 
+
+   if(tidx < k) {
+      HYPRE_Real xx = x[tidx];
+      for (HYPRE_Int j=csc_col_offsets[tidx]; j<csc_col_offsets[tidx+1]; ++j) {
+         HYPRE_Int ii = csc_rows[j];
+         if (ii>=k) {
+            atomicAdd(y + ii, csc_data[j] * xx);
+         }
+      }
+   }
 }
 
 
@@ -479,6 +525,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
    HYPRE_Int i=0, j=0, k=0;
 
+   int nThreads, nBlocks;
+
     //hypre_CSRMatrix          *A_diag          = hypre_ParCSRMatrixDiag(A);
    HYPRE_Real              *A_data              = hypre_CSRMatrixData(A_diag);
    HYPRE_Int               *A_i                 = hypre_CSRMatrixI(A_diag);
@@ -608,8 +656,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        Lcsc_col_count[0] = Acsc_col_offsets[1];
    }
 
-   int nThreads = 128;
-   int nBlocks = (Acsc_col_offsets[1] + nThreads-1)/nThreads;
+   nThreads = 128;
+   nBlocks = (Acsc_col_offsets[1] + nThreads-1)/nThreads;
 
    initFirstDiagCol<<<nBlocks, nThreads>>>
       (  d_Acsc_rows,
@@ -658,10 +706,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    HYPRE_Real * avect = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_HOST);
    HYPRE_Real * temp3 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_HOST);
 
-   //HYPRE_Real * d_temp1 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
-   //HYPRE_Real * d_temp2 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
-   //HYPRE_Real * d_avect = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
-   //HYPRE_Real * d_temp3 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
+   HYPRE_Real * d_temp1 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
+   HYPRE_Real * d_temp2 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
+   HYPRE_Real * d_avect = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
+   HYPRE_Real * d_temp3 = hypre_CTAlloc(HYPRE_Real, n, HYPRE_MEMORY_DEVICE);
 
    /*************************************************************************/
    /* Loop over the remaining columns                                       */
@@ -675,6 +723,11 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        hypre_Memset(avect, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_HOST);
        hypre_Memset(temp3, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_HOST);
 
+       hypre_Memset(d_temp1, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
+       hypre_Memset(d_temp2, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
+       hypre_Memset(d_avect, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
+       hypre_Memset(d_temp3, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
+
        /************/
        /* Update L */
        /************/
@@ -682,8 +735,33 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        /* 1) elementwise : temp1 =  L[k,:k] .* Diag[:k] */
        hypre_LCSC_RowKtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, D_data, temp1);
 
+       nThreads = 128;
+       nBlocks = (k + nThreads-1)/nThreads;
+       device_hypre_LCSC_RowKtimesDenseVector<<<nBlocks, nThreads>>>(
+            n, 
+            k, 
+            d_Lcsc_rows, 
+            d_Lcsc_col_offsets, 
+            d_Lcsc_data, 
+            d_D_data, 
+            d_temp1);
+
        /* 2) normal spmv : avect =  L[k:n,:k] * temp1 */
        hypre_LCSCtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, temp1, avect);
+
+      /* 
+
+       nThreads = 128;
+       nBlocks = (k + nThreads-1)/nThreads;
+      device_hypre_LCSCtimesDenseVector<<<nBlocks, nThreads>>>(
+            n, 
+            k, 
+            d_Lcsc_rows, 
+            d_Lcsc_col_offsets, 
+            d_Lcsc_data, 
+            d_temp1, 
+            d_avect);
+      */
 
        /* 3) L[k:n,k] = A[k:n,k] - avect
  
