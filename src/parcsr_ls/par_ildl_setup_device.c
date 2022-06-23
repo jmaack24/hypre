@@ -936,8 +936,13 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 #endif
 
        /* Move data to short buffer */
-       HYPRE_Real * temp4_data = hypre_CTAlloc(HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST);
-       HYPRE_Int * temp4_rows = hypre_CTAlloc(HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST);
+      HYPRE_Real * temp4_data = hypre_CTAlloc(HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST);
+      HYPRE_Int * temp4_rows = hypre_CTAlloc(HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST);
+
+      // GPU copies of the short buffer 
+      HYPRE_Real * d_temp4_data = hypre_CTAlloc(HYPRE_Real, col_k_nnz, HYPRE_MEMORY_DEVICE);
+      HYPRE_Int * d_temp4_rows = hypre_CTAlloc(HYPRE_Int, col_k_nnz, HYPRE_MEMORY_DEVICE);
+
        i=0;
        for (j=k; j<n; ++j)
        {
@@ -1016,6 +1021,9 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        hypre_TFree(temp4_data, HYPRE_MEMORY_HOST);
        hypre_TFree(temp4_rows, HYPRE_MEMORY_HOST);
 
+       hypre_TFree(d_temp4_data, HYPRE_MEMORY_DEVICE);
+       hypre_TFree(d_temp4_rows, HYPRE_MEMORY_DEVICE);
+
 #ifdef HYPRE_USING_CUDA
        if (k==lastk+1000 || k==n-1) {
            cudaEventRecord(stop, 0);
@@ -1032,6 +1040,11 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    hypre_TFree(temp2, HYPRE_MEMORY_HOST);
    hypre_TFree(avect, HYPRE_MEMORY_HOST);
    hypre_TFree(temp3, HYPRE_MEMORY_HOST);
+
+   hypre_TFree(d_temp1, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_temp2, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_avect, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_temp3, HYPRE_MEMORY_DEVICE);
 
    /* Convert L to CSR */
    HYPRE_Int nnz_L = Lcsc_col_offsets[n];
