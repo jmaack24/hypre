@@ -811,9 +811,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    //hypre_TMemcpy(d_Lcsc_data, &one_real, HYPRE_Real, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
 
    /* exclusive scan */
-   Lcsc_col_offsets[0]=0;
+   /*Lcsc_col_offsets[0]=0;
    for (i=1; i<n+1; ++i)
        Lcsc_col_offsets[i] = Lcsc_col_count[i-1]+Lcsc_col_offsets[i-1];
+   */
 
    // GPU version of the same exclusive scan (we implement it with an inclusive scan)
    hypre_TMemcpy(d_Lcsc_col_offsets, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
@@ -827,7 +828,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
    hypre_TMemcpy(Lcsc_col_offsets, d_Lcsc_col_offsets, HYPRE_Int, n + 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
-   HYPRE_Int Lcsc_nnz = Lcsc_col_offsets[1];
+   //HYPRE_Int Lcsc_nnz = Lcsc_col_offsets[1];
+   HYPRE_Int Lcsc_nnz;
    hypre_TMemcpy(&Lcsc_nnz, d_Lcsc_col_offsets + 1, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
 #ifdef HYPRE_ILDL_DEBUG
@@ -1169,6 +1171,18 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 #endif
    }
 
+   // This last post-processing step is best
+   // done on the CPU 
+
+   hypre_TMemcpy(Lcsc_col_offsets, 
+         d_Lcsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
+   hypre_TMemcpy(Lcsc_rows, 
+         d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
+   hypre_TMemcpy(Lcsc_data, 
+         d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
    hypre_TFree(temp1, HYPRE_MEMORY_HOST);
    hypre_TFree(temp2, HYPRE_MEMORY_HOST);
    hypre_TFree(avect, HYPRE_MEMORY_HOST);
@@ -1180,7 +1194,15 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    hypre_TFree(d_temp3, HYPRE_MEMORY_DEVICE);
 
    /* Convert L to CSR */
-   HYPRE_Int nnz_L = Lcsc_col_offsets[n];
+   //HYPRE_Int nnz_L = Lcsc_col_offsets[n]; 
+   HYPRE_Int nnz_L;
+   hypre_TMemcpy(&nnz_L, 
+         d_Lcsc_col_offsets + n, 
+         HYPRE_Int, 
+         1, 
+         HYPRE_MEMORY_HOST, 
+         HYPRE_MEMORY_DEVICE);
+
    hypre_CSRMatrix * Lcsc = hypre_CSRMatrixCreate(n, m, nnz_L);
    hypre_CSRMatrix * Lcsr = hypre_CSRMatrixCreate(n, m, nnz_L);
 
