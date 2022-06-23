@@ -620,19 +620,29 @@ __global__ void create_short_buffer(
          temp4_data[slot]=temp3[j];
       }
    }
+}
 
-   /*
-   i=0;
-   for (j=k; j<n; ++j)
-   {
-      if (temp3[j]!=0.0)
-      {
-         temp4_rows[i]=j;
-         temp4_data[i++]=temp3[j];
-      }
+/*
+ * This kernel could probably be replaced with a
+ * simple Memcpy... 
+ */
+__global__ void copy_data_to_end(
+   HYPRE_Int col_k_nnz,
+   HYPRE_Int * offset_ptr,
+   HYPRE_Int * temp4_rows,
+   HYPRE_Real * temp4_data,
+   HYPRE_Int * Lcsc_rows,
+   HYPRE_Real * Lcsc_data) {
+
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+   HYPRE_Int offset = *offset_ptr;
+   if(tidx < col_k_nnz) {
+      // TODO: Should add some finiteness error
+      // checking back in!          
+      //if (!std::isfinite(temp4_data[i])) 
+      Lcsc_rows[offset+tidx] = temp4_rows[tidx];
+      Lcsc_data[offset+tidx] = temp4_data[tidx];
    }
-   */
-
 }
 
 HYPRE_Int
@@ -1116,14 +1126,30 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       // prefix scan above^^^^ ?
 
        /* next, copy the data onto the end */
-       for (i=0; i<col_k_nnz; ++i) {
+       /*for (i=0; i<col_k_nnz; ++i) {
            if (!std::isfinite(temp4_data[i])) {
 	     hypre_printf("%s %s %d : Found infinite value!\n",__FILE__,__FUNCTION__,__LINE__);
                exit(1);
            }
            Lcsc_rows[Lcsc_col_offsets[k]+i] = temp4_rows[i];
            Lcsc_data[Lcsc_col_offsets[k]+i] = temp4_data[i];
-       }
+       }*/
+
+      nThreads = 128;
+      nBlocks = (col_k_nnz + nThreads-1)/nThreads;  
+      copy_data_to_end<<<nBlocks, nThreads>>>(
+         col_k_nnz,
+         d_Lcsc_col_offsets + k,
+         d_temp4_rows,
+         d_temp4_data,
+         d_Lcsc_rows,
+         d_Lcsc_data);
+
+      hypre_TMemcpy(Lcsc_rows, 
+            d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
+      hypre_TMemcpy(Lcsc_data, 
+            d_Lcsc_data, HYPRE_Real, capacity, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        hypre_TFree(temp4_data, HYPRE_MEMORY_HOST);
        hypre_TFree(temp4_rows, HYPRE_MEMORY_HOST);
