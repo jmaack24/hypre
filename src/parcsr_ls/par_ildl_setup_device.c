@@ -1004,15 +1004,16 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_temp4_rows,
          d_temp4_data
       );
+
+      thrust::stable_sort_by_key(thrust::device,
+            d_temp4_rows,
+            d_temp4_rows+col_k_nnz,
+            d_temp4_data,
+            thrust::less<HYPRE_Int>());
+
       hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
       hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
-      // Need to sort, since atomics can execute in arbitrary order
-      thrust::stable_sort_by_key(thrust::host,
-            temp4_rows,
-            temp4_rows+col_k_nnz,
-            temp4_data,
-            thrust::less<HYPRE_Int>());
 
        if (lfil>0) {
 
@@ -1020,14 +1021,18 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
 	     /* Zero all but 'lfil' largest elements below the diagonal */
 
+        /*
+         * No idea what this debug printout does, so I'm
+         * going to disable it.
 	     if (temp4_rows[0] != k)
 	       {
 		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
 	       }
-
+         */
+   
 	     /* Make sure diagonal value is not removed by skipping it -- should
 	      always be the first element in temp4_data and temp4_row */
-	     thrust::stable_sort_by_key(thrust::host,
+	     /*thrust::stable_sort_by_key(thrust::host,
 					temp4_data + 1,
 					temp4_data+col_k_nnz,
 					temp4_rows + 1,
@@ -1036,12 +1041,27 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 	     hypre_Memset(temp4_data + lfil + 1, 0, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
 	     hypre_Memset(temp4_rows + lfil + 1, n+1, col_k_nnz - lfil - 1, HYPRE_MEMORY_HOST);
 	     thrust::stable_sort_by_key(thrust::host, temp4_rows, temp4_rows+lfil, temp4_data);
+	     col_k_nnz = lfil + 1;*/
+
+        // GPU copies of the same operations
+	     thrust::stable_sort_by_key(thrust::device,
+					d_temp4_data + 1,
+					d_temp4_data+col_k_nnz,
+					d_temp4_rows + 1,
+					thrust::greater<HYPRE_Real>());
+
+	     hypre_Memset(d_temp4_data + lfil + 1, 0, col_k_nnz - lfil - 1, HYPRE_MEMORY_DEVICE);
+	     hypre_Memset(d_temp4_rows + lfil + 1, n+1, col_k_nnz - lfil - 1, HYPRE_MEMORY_DEVICE);
+	     thrust::stable_sort_by_key(thrust::device, d_temp4_rows, d_temp4_rows+lfil, d_temp4_data);
 	     col_k_nnz = lfil + 1;
 
 	     if (temp4_rows[0] != k)
 	       {
 		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
 	       }
+
+         hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+         hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
            }
        }
