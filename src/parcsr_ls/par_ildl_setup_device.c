@@ -1076,6 +1076,9 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
            /* reallocate */
            Lcsc_rows = hypre_TReAlloc_v2(Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_HOST);
            Lcsc_data = hypre_TReAlloc_v2(Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_HOST);
+           d_Lcsc_rows = hypre_TReAlloc_v2(d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
+           d_Lcsc_data = hypre_TReAlloc_v2(d_Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
+
            capacity = capacity + nnz_A;
            //#ifdef HYPRE_ILDL_DEBUG
            hypre_printf("%s %s %d : k=%d, capacity : before=%d, after=%d\n",__FILE__,__FUNCTION__,__LINE__,k,capacity-nnz_A,capacity);
@@ -1084,11 +1087,34 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        }
 
        /* exclusive scan */
+       /*
        Lcsc_col_count[k] = col_k_nnz;
        Lcsc_col_offsets[k]=0;
        for (i=1; i<n+1; ++i) {
            Lcsc_col_offsets[i] = Lcsc_col_count[i-1]+Lcsc_col_offsets[i-1];
        }
+       */
+
+      hypre_TMemcpy(d_Lcsc_col_count + k, 
+            &col_k_nnz, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+
+
+      // GPU version of the same exclusive scan (we implement it with an inclusive scan)
+      hypre_TMemcpy(d_Lcsc_col_offsets, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+      thrust::inclusive_scan(
+         thrust::device,
+         d_Lcsc_col_count, 
+         d_Lcsc_col_count + n,
+         d_Lcsc_col_offsets + 1,
+         thrust::plus<HYPRE_Int>()
+         );
+
+      hypre_TMemcpy(Lcsc_col_offsets, 
+            d_Lcsc_col_offsets, HYPRE_Int, n+1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
+      // TODO: Do we really need the expensive
+      // prefix scan above^^^^ ?
+
        /* next, copy the data onto the end */
        for (i=0; i<col_k_nnz; ++i) {
            if (!std::isfinite(temp4_data[i])) {
