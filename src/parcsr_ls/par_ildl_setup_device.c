@@ -754,12 +754,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       hypre_TMemcpy(temp1, d_temp1, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
 
        /* 2) normal spmv : avect =  L[k:n,:k] * temp1 */
-       hypre_LCSCtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, temp1, avect);
+       //hypre_LCSCtimesDenseVector(n, k, Lcsc_rows, Lcsc_col_offsets, Lcsc_data, temp1, avect);
 
-      /* 
-
-       nThreads = 128;
-       nBlocks = (k + nThreads-1)/nThreads;
+      nThreads = 128;
+      nBlocks = (k + nThreads-1)/nThreads;
       device_hypre_LCSCtimesDenseVector<<<nBlocks, nThreads>>>(
             n, 
             k, 
@@ -768,7 +766,9 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_Lcsc_data, 
             d_temp1, 
             d_avect);
-      */
+
+      hypre_TMemcpy(avect, d_avect, HYPRE_Real, n, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
 
        /* 3) L[k:n,k] = A[k:n,k] - avect
  
