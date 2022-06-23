@@ -578,7 +578,6 @@ __global__ void scale_by_diagonal(
    HYPRE_Real * temp3,
    HYPRE_Real * D_data
    ) {
-   /* scale by the diagonal */
    int tidx = blockIdx.x*blockDim.x + threadIdx.x;
 
    if(tidx == 0) {
@@ -594,6 +593,46 @@ __global__ void scale_by_diagonal(
          temp3[j]=t/D_data[k];
       }
    }
+}
+
+__global__ void create_short_buffer(
+   HYPRE_Int n,
+   HYPRE_Int k, 
+   HYPRE_Real * temp3,
+   HYPRE_Int * temp4_rows,
+   HYPRE_Real * temp4_data
+) {
+   int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+   __shared__ HYPRE_Int i;
+
+   if(tidx == 0) {
+      i = 0;
+   }
+   __syncthreads();
+
+   int diff = n - k;
+   if(tidx < diff) {
+      HYPRE_Int j = k + tidx;
+      if (temp3[j]!=0.0)
+      {
+         HYPRE_Int slot = atomicAdd(&i, 1);
+         temp4_rows[slot]=j;
+         temp4_data[slot]=temp3[j];
+      }
+   }
+
+   /*
+   i=0;
+   for (j=k; j<n; ++j)
+   {
+      if (temp3[j]!=0.0)
+      {
+         temp4_rows[i]=j;
+         temp4_data[i++]=temp3[j];
+      }
+   }
+   */
+
 }
 
 HYPRE_Int
@@ -943,15 +982,37 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       HYPRE_Real * d_temp4_data = hypre_CTAlloc(HYPRE_Real, col_k_nnz, HYPRE_MEMORY_DEVICE);
       HYPRE_Int * d_temp4_rows = hypre_CTAlloc(HYPRE_Int, col_k_nnz, HYPRE_MEMORY_DEVICE);
 
-       i=0;
-       for (j=k; j<n; ++j)
-       {
-          if (temp3[j]!=0.0)
-          {
-              temp4_rows[i]=j;
-              temp4_data[i++]=temp3[j];
-          }
-       }
+      /*i=0;
+      for (j=k; j<n; ++j)
+      {
+         if (temp3[j]!=0.0)
+         {
+            temp4_rows[i]=j;
+            temp4_data[i++]=temp3[j];
+         }
+      }
+      printf("CPU i Value: %d\n", i);
+      */
+
+      diff = n - k;
+      nThreads = 128;
+      nBlocks = (diff + nThreads-1)/nThreads;  
+      create_short_buffer<<<nBlocks, nThreads>>>(
+         n,
+         k, 
+         d_temp3,
+         d_temp4_rows,
+         d_temp4_data
+      );
+      hypre_TMemcpy(temp4_rows, d_temp4_rows, HYPRE_Int, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+      hypre_TMemcpy(temp4_data, d_temp4_data, HYPRE_Real, col_k_nnz, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
+
+      // Need to sort, since atomics can execute in arbitrary order
+      thrust::stable_sort_by_key(thrust::host,
+            temp4_rows,
+            temp4_rows+col_k_nnz,
+            temp4_data,
+            thrust::less<HYPRE_Int>());
 
        if (lfil>0) {
 
