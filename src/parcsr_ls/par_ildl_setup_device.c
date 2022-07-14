@@ -476,26 +476,26 @@ HYPRE_Int hypre_DenseVectorDropEntriesAfterK(HYPRE_Int n, HYPRE_Int k,  HYPRE_Re
 /*   return; */
 /* } */
 
-__global__ void device_finite_scan(HYPRE_Int n,
-				   HYPRE_Int k,
-				   HYPRE_Real *x)
-{
-  int tidx = blockIdx.x*blockDim.x + threadIdx.x;
+/* __global__ void device_finite_scan(HYPRE_Int n, */
+/* 				   HYPRE_Int k, */
+/* 				   HYPRE_Real *x) */
+/* { */
+/*   int tidx = blockIdx.x*blockDim.x + threadIdx.x; */
 
-  if (tidx < n)
-    {
-      if (tidx < k && x[tidx] != 0.0)
-	{
-	  printf("Nonzero found at index=%d, value=%e\n", tidx, x[tidx]);
-	}
-      else if (!isfinite(x[tidx]))
-	{
-	  printf("Non finite value found at index=%d, value=%e\n", tidx, x[tidx]);
-	}
-    }
+/*   if (tidx < n) */
+/*     { */
+/*       if (tidx < k && x[tidx] != 0.0) */
+/* 	{ */
+/* 	  printf("Nonzero found at index=%d, value=%e\n", tidx, x[tidx]); */
+/* 	} */
+/*       else if (!isfinite(x[tidx])) */
+/* 	{ */
+/* 	  printf("Non finite value found at index=%d, value=%e\n", tidx, x[tidx]); */
+/* 	} */
+/*     } */
 
-  return;
-}
+/*   return; */
+/* } */
 
 /* __global__ void print_dense_vect(HYPRE_Int n, */
 /* 				 HYPRE_Real *x) */
@@ -521,6 +521,27 @@ __global__ void device_finite_scan(HYPRE_Int n,
 /*   return; */
 /* } */
 
+/* __global__ void print_dense_vect_int(HYPRE_Int n, */
+/* 				     HYPRE_Int *x) */
+/* { */
+/*   int tidx = threadIdx.x; */
+/*   int stride = blockDim.x; */
+
+/*   while (tidx < n) */
+/*     { */
+/*       printf("x[%d] = %d\n", tidx, x[tidx]); */
+/*       tidx += stride; */
+/*     } */
+
+/*   return; */
+/* } */
+
+/* void print_dvi(HYPRE_Int n, HYPRE_Int *x) */
+/* { */
+/*   print_dense_vect_int<<<1,1>>>(n, x); */
+/*   return; */
+/* } */
+
 /* __global__ void print_sparse_vect(HYPRE_Int n, */
 /* 				  HYPRE_Int *idx, */
 /* 				  HYPRE_Real *x) */
@@ -528,11 +549,15 @@ __global__ void device_finite_scan(HYPRE_Int n,
 /*   int tidx = threadIdx.x; */
 /*   int stride = blockDim.x; */
 
+/*   printf("**** start ****\n"); */
+
 /*   while (tidx < n) */
 /*     { */
 /*       printf("x[%d] = %e\n", idx[tidx], x[tidx]); */
 /*       tidx += stride; */
 /*     } */
+
+/*   printf("**** end ****\n"); */
 
 /*   return; */
 /* } */
@@ -543,50 +568,50 @@ __global__ void device_finite_scan(HYPRE_Int n,
 /*   return; */
 /* } */
 
-__global__ void device_dense_nnz(HYPRE_Int n,
-				 HYPRE_Real *x,
-				 HYPRE_Int *nnz_out)
-{
-  __shared__ HYPRE_Int nnz;
-  int tidx = threadIdx.x;
-  int stride = blockDim.x;
+/* __global__ void device_dense_nnz(HYPRE_Int n, */
+/* 				 HYPRE_Real *x, */
+/* 				 HYPRE_Int *nnz_out) */
+/* { */
+/*   __shared__ HYPRE_Int nnz; */
+/*   int tidx = threadIdx.x; */
+/*   int stride = blockDim.x; */
 
-  if (threadIdx.x == 0)
-    {
-      nnz = 0;
-    }
+/*   if (threadIdx.x == 0) */
+/*     { */
+/*       nnz = 0; */
+/*     } */
 
-  __syncthreads();
+/*   __syncthreads(); */
 
-  while (tidx < n)
-    {
-      if (x[tidx] != 0.0)
-	{
-	  // printf("idx=%d   x[idx]=%.12e\n", tidx, x[tidx]);
-	  atomicAdd(&nnz, 1);
-	}
+/*   while (tidx < n) */
+/*     { */
+/*       if (x[tidx] != 0.0) */
+/* 	{ */
+/* 	  // printf("idx=%d   x[idx]=%.12e\n", tidx, x[tidx]); */
+/* 	  atomicAdd(&nnz, 1); */
+/* 	} */
 
-      tidx += stride;
-    }
+/*       tidx += stride; */
+/*     } */
 
-  __syncthreads();
+/*   __syncthreads(); */
 
-  *nnz_out = nnz;
+/*   *nnz_out = nnz; */
 
-  return;
-}
+/*   return; */
+/* } */
 
-int count_device_dense_nnz(HYPRE_Int n,
-			   HYPRE_Real *x)
-{
-  HYPRE_Int nnz = 0;
-  HYPRE_Int *d_nnz = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
-  device_dense_nnz<<<1,128>>>(n, x, d_nnz);
-  hypre_TMemcpy(&nnz, d_nnz, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-  hypre_TFree(d_nnz, HYPRE_MEMORY_DEVICE);
-  
-  return nnz;
-}
+/* int count_device_dense_nnz(HYPRE_Int n, */
+/* 			   HYPRE_Real *x) */
+/* { */
+/*   HYPRE_Int nnz = 0; */
+/*   HYPRE_Int *d_nnz = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE); */
+/*   device_dense_nnz<<<1,128>>>(n, x, d_nnz); */
+/*   hypre_TMemcpy(&nnz, d_nnz, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE); */
+/*   hypre_TFree(d_nnz, HYPRE_MEMORY_DEVICE); */
+
+/*   return nnz; */
+/* } */
 
 /* __global__ void device_hypre_DenseVectorTwoNormSq( */
 /*       HYPRE_Int n, */
@@ -627,7 +652,7 @@ int count_device_dense_nnz(HYPRE_Int n,
 /*       /\* 	     blockIdx.x, *\/ */
 /*       /\*        mag); *\/ */
 /*     } */
-  
+
 /* } */
 
 __global__ void device_hypre_DenseVectorDropEntriesAfterK_ptol(
@@ -791,34 +816,16 @@ __global__ void scale_by_diagonal(
    ) {
    int tidx = blockIdx.x*blockDim.x + threadIdx.x;
 
-   /* __shared__ HYPRE_Real dk; */
-
-   /* if (threadIdx.x == 0) */
-   /*   { */
-   /*     dk = temp2[k] - avect[k]; */
-   /*   } */
-
    HYPRE_Real dk = temp2[k] - avect[k];
 
    if(tidx == 0) {
       D_data[k] = dk;
-      printf("k=%d  D[k]=%e\n", k, D_data[k]);
    }
-
-   /* __syncthreads(); */
 
    if(tidx < n - k) {
       HYPRE_Int j = tidx + k;
       HYPRE_Real t = temp2[j]-avect[j];
-      /* if(!isfinite(t)) */
-      /* 	{ */
-      /* 	  printf("tidx=%d  k=%d  j=%d  t=%e  temp2[j]=%e  avect[j]=%e\n", */
-      /* 		 tidx, k, j, t, temp2[j], avect[j]); */
-      /* 	} */
       temp3[j] = t / dk;
-      /* if (t!=0) { */
-      /*    temp3[j]=t/D_data[k]; */
-      /* } */
    }
 }
 
@@ -958,6 +965,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 #endif
 
    HYPRE_Int Lcsc_nnz;
+   HYPRE_Int col_k_nnz;
    HYPRE_Real magsq;
 
    /*************************************************************************/
@@ -1003,7 +1011,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 						 is_less_than_tol(drop_tol));
        hypre_assert(data_end - d_Lcsc_data == col_nnz);
 
-       printf("A_nnz: %d  L_nnz: %d  Mag: %e\n", offset, col_nnz, sqrt(magsq));
+       /* printf("A_nnz: %d  L_nnz: %d  Mag: %e\n", offset, col_nnz, sqrt(magsq)); */
 
        Lcsc_nnz = col_nnz;
 
@@ -1025,35 +1033,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
        Lcsc_nnz = offset;
      }
 
-   /* if (tol[0]>0.0) { */
-   /*    nThreads = 128; */
-   /*    HYPRE_Int offset; */
-   /*    hypre_TMemcpy(&offset, d_Acsc_col_offsets + 1, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE); */
-   /*    nBlocks = (offset + nThreads-1)/nThreads; */
-
-   /*    // TODO: Looks like this needs the lfil drop also... */
-   /*    initFirstDiagCol<<<nBlocks, nThreads>>> */
-   /*       (  d_Acsc_rows, */
-   /*          d_Acsc_data, */
-   /*          d_D_data, */
-   /*          d_Lcsc_col_count, */
-   /*          d_Lcsc_rows,  */
-   /*          d_Lcsc_data, */
-   /*          offset, */
-   /*          tol[0] */
-   /*          ); */
-   /* } */
-   /* else */
-   /* { */
-   /*    // TODO: Should fully port this conditional */
-   /*    // branch to the GPU  */
-   /*    // for (i=1; i<Acsc_col_offsets[1]; ++i) { */
-   /*    //     Lcsc_rows[i] = Acsc_rows[i]; */
-   /*    //     Lcsc_data[i] = Acsc_data[i]/D_data[0]; */
-   /*    // } */
-   /*    // Lcsc_col_count[0] = Acsc_col_offsets[1]; */
-   /* } */
-
    // GPU version of exclusive scan (we implement it with an inclusive scan)
    hypre_TMemcpy(d_Lcsc_col_offsets,
 		 &zero_int,
@@ -1070,8 +1049,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       thrust::plus<HYPRE_Int>()
       );
 
-   // hypre_TMemcpy(&Lcsc_nnz, d_Lcsc_col_offsets + 1, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-
 #ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d : Lcsc_nnz=%d\n",__FILE__,__FUNCTION__,__LINE__,Lcsc_nnz);
    fflush(NULL);
@@ -1084,44 +1061,22 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    HYPRE_Int * d_col_k_nnz = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
    HYPRE_Int * d_adj_diff = hypre_CTAlloc(HYPRE_Int, 1, HYPRE_MEMORY_DEVICE);
 
-   // HYPRE_Real * d_magsq = hypre_CTAlloc(HYPRE_Real, 1, HYPRE_MEMORY_DEVICE);
-
    /*************************************************************************/
    /* Loop over the remaining columns                                       */
    /*************************************************************************/
 
    for (k=1; k<n; ++k) {
        /* printf("******** k=%d ********\n", k); */
-       /* force this to 1 (for the diagonal element) at each iteration */
-       hypre_Memset(d_col_k_nnz, 0, sizeof(HYPRE_Int), HYPRE_MEMORY_DEVICE);
        /* force these to 0 at each iteration */
        hypre_Memset(d_temp1, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
        hypre_Memset(d_temp2, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
        hypre_Memset(d_avect, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
        hypre_Memset(d_temp3, 0, sizeof(HYPRE_Real)*n, HYPRE_MEMORY_DEVICE);
-
-       // hypre_Memset(d_magsq, 0, sizeof(HYPRE_Real), HYPRE_MEMORY_DEVICE);
-       // magsq = 0.0;
+       hypre_Memset(d_col_k_nnz, 0, sizeof(HYPRE_Int), HYPRE_MEMORY_DEVICE);
 
        /************/
        /* Update L */
        /************/
-
-       /* if (k == 2) */
-       /* 	 { */
-       /* 	   device_print_L<<<1,1>>>(n, */
-       /* 				   k, */
-       /* 				   d_Acsc_col_offsets, */
-       /* 				   d_Acsc_rows, */
-       /* 				   d_Acsc_data, */
-       /* 				   NULL); */
-       /* 	   device_print_L<<<1,1>>>(n, */
-       /* 				   k, */
-       /* 				   d_Lcsc_col_offsets, */
-       /* 				   d_Lcsc_rows, */
-       /* 				   d_Lcsc_data, */
-       /* 				   d_D_data); */
-       /* 	 } */
 
        /* 1) elementwise : temp1 =  L[k,:k] .* Diag[:k] */
        nThreads = 128;
@@ -1148,9 +1103,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
             d_temp1, 
             d_avect);
 
-      /* printf("**** avect ****\n"); */
-      /* print_dv(n, d_avect); */
-
        /* 3) L[k:n,k] = A[k:n,k] - avect 
          A is sparse csc, avect has full storage but it is sparsely populated
           need to compute collisions first, then rellocate storage
@@ -1176,15 +1128,10 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_Acsc_data, 
          d_temp2);
 
-      /* printf("**** temp2 ****\n"); */
-      /* print_dv(n, d_temp2); */
-
        /* scale by the diagonal */
       diff = n - k;
       nThreads = 128;
       nBlocks = (diff + nThreads-1)/nThreads;
-      /* printf("Max index = %d\n", nThreads*nBlocks); */
-      /* device_nonzero_scan<<<nBlocks, nThreads>>>(n, k, d_temp3); */
       scale_by_diagonal<<<nBlocks, nThreads>>>(
          n,
          k,
@@ -1192,11 +1139,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_temp2,
          d_temp3,
          d_D_data);
-
-      /* printf("**** temp3 ****\n"); */
-      /* print_dv(n, d_temp3); */
-      /* printf("**** diagonal ****\n"); */
-      /* print_dv(k, d_D_data); */
 
 /*
 #ifdef HYPRE_ILDL_DEBUG
@@ -1212,36 +1154,36 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       nThreads = 128;
       nBlocks = (diff + nThreads-1)/nThreads;
 
-      /* device_finite_scan<<<nBlocks, nThreads>>>(n, k, d_temp3); */
-      /* HYPRE_Int nnz2 = count_device_dense_nnz(n, d_temp2); */
-      /* HYPRE_Int nnza = count_device_dense_nnz(n, d_avect); */
-      /* HYPRE_Int nnz3 = count_device_dense_nnz(n, d_temp3); */
-      /* printf("Temp2 NNZ: %d    AVect NNZ: %d    Temp3 NNZ: %d\n", nnz2, nnza, nnz3); */
+      if (tol[0] > 0.0)
+	{
+	  magsq = thrust::inner_product(thrust::device, d_temp3 + k, d_temp3 + n, d_temp3 + k, 0.0);
 
-      magsq = thrust::inner_product(thrust::device, d_temp3 + k, d_temp3 + n, d_temp3 + k, 0.0);
+	  hypre_assert(isfinite(magsq));
+	  hypre_assert(magsq > 0.0);
 
-      hypre_assert(isfinite(magsq));
-      hypre_assert(magsq > 0.0);
+	  device_hypre_DenseVectorDropEntriesAfterK_ptol<<<nBlocks, nThreads>>>(n,
+										k,
+										d_temp3,
+										tol[0],
+										magsq,
+										d_col_k_nnz
+										);
 
-      device_hypre_DenseVectorDropEntriesAfterK_ptol<<<nBlocks, nThreads>>>(
-	    n,
-	    k,
-	    d_temp3,
-	    tol[0],
-	    magsq,
-	    d_col_k_nnz
-	    );
+	  hypre_TMemcpy(&col_k_nnz,
+			d_col_k_nnz,
+			HYPRE_Int,
+			1,
+			HYPRE_MEMORY_HOST,
+			HYPRE_MEMORY_DEVICE);
+	  col_k_nnz += 1;
 
-      HYPRE_Int col_k_nnz; 
-      hypre_TMemcpy(&col_k_nnz, d_col_k_nnz, HYPRE_Int, 1, HYPRE_MEMORY_HOST, HYPRE_MEMORY_DEVICE);
-      col_k_nnz += 1;
-
-      hypre_printf("%s %s %d : column=%d  nnz=%d  mag=%e\n",
-		   __FILE__,__FUNCTION__,__LINE__,
-		   k, col_k_nnz, sqrt(magsq));
-      fflush(NULL);
-
-      // hypre_assert(k < 3);
+	}
+      else
+	{
+	  /* Not doing tolerance drop. Assume vector is completely filled for now. Reduction */
+	  /* to sparse vector will get the correct number. */
+	  col_k_nnz = n - k;
+	}
 
 #ifdef HYPRE_ILDL_DEBUG
        hypre_printf("%s %s %d : col_k_nnz=%d\n",__FILE__,__FUNCTION__,__LINE__,col_k_nnz);
@@ -1253,29 +1195,32 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
       HYPRE_Real * d_temp4_data = hypre_CTAlloc(HYPRE_Real, col_k_nnz, HYPRE_MEMORY_DEVICE);
       HYPRE_Int * d_temp4_rows = hypre_CTAlloc(HYPRE_Int, col_k_nnz, HYPRE_MEMORY_DEVICE);
 
-      /* hypre_printf("%s %s %d : column=%d  nnz=%d\n", */
-      /* 		   __FILE__,__FUNCTION__,__LINE__, */
-      /* 		   k, col_k_nnz); */
 
       diff = n - k;
       nThreads = 128;
       nBlocks = (diff + nThreads-1)/nThreads;
 
-      thrust::copy_if(thrust::device,
-		      thrust::counting_iterator<HYPRE_Int>(0),
-		      thrust::counting_iterator<HYPRE_Int>(n),
-		      d_temp3,
-		      d_temp4_rows,
-		      is_nonzero());
+      HYPRE_Int *rows_end = thrust::copy_if(thrust::device,
+					    thrust::counting_iterator<HYPRE_Int>(0),
+					    thrust::counting_iterator<HYPRE_Int>(n),
+					    d_temp3,
+					    d_temp4_rows,
+					    is_nonzero());
+      if (tol[0] > 0.0)
+	{
+	  hypre_assert(rows_end - d_temp4_rows == col_k_nnz);
+	}
+      else
+	{
+	  col_k_nnz = rows_end - d_temp4_rows;
+	}
 
-      thrust::copy_if(thrust::device,
-		      d_temp3,
-		      d_temp3 + n,
-		      d_temp4_data,
-		      is_nonzero());
-
-      /* printf("**** temp4 sparse ****\n"); */
-      /* print_sv(col_k_nnz, d_temp4_rows, d_temp4_data); */
+      HYPRE_Real *data_end = thrust::copy_if(thrust::device,
+					     d_temp3,
+					     d_temp3 + n,
+					     d_temp4_data,
+					     is_nonzero());
+      hypre_assert(data_end - d_temp4_data == col_k_nnz);
 
       thrust::stable_sort_by_key(thrust::device,
             d_temp4_rows,
@@ -1289,38 +1234,26 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
 
 	     /* Zero all but 'lfil' largest elements (in magnitude) below */
 	     /* the diagonal */
-
-        /*
-         * No idea what this debug printout does, so I'm
-         * going to disable it.
-	     if (temp4_rows[0] != k)
-	       {
-		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
-	       }
-         */
    
 	     /* Make sure diagonal value is not removed by skipping it -- should
 	      always be the first element in temp4_data and temp4_row */
 
-
-	     // TODO: needs to sort base on greatest MAGNITUDE!!!
 	     thrust::stable_sort_by_key(thrust::device,
 					d_temp4_data + 1,
-					d_temp4_data+col_k_nnz,
+					d_temp4_data + col_k_nnz,
 					d_temp4_rows + 1,
-					//thrust::greater<HYPRE_Real>());
 					abs_greater());
 
-	     hypre_Memset(d_temp4_data + lfil + 1, 0, col_k_nnz - lfil - 1, HYPRE_MEMORY_DEVICE);
-	     hypre_Memset(d_temp4_rows + lfil + 1, n+1, col_k_nnz - lfil - 1, HYPRE_MEMORY_DEVICE);
-	     thrust::stable_sort_by_key(thrust::device, d_temp4_rows, d_temp4_rows+lfil, d_temp4_data);
-	     col_k_nnz = lfil + 1;
+	     thrust::fill(thrust::device,
+			  d_temp4_rows + lfil + 1,
+			  d_temp4_rows + col_k_nnz,
+			  n+1);
+	     thrust::stable_sort_by_key(thrust::device,
+					d_temp4_rows,
+					d_temp4_rows + col_k_nnz,
+					d_temp4_data);
 
-	     /*if (temp4_rows[0] != k)
-	       {
-		 hypre_printf("%s %s %d : Value above the diagonal -- col=%d row=%d value=%g\n",__FILE__,__FUNCTION__,__LINE__, k, temp4_rows[0], temp4_data[0]);
-	       }
-          */
+	     col_k_nnz = lfil + 1;
            }
        }
 
@@ -1335,20 +1268,13 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
            d_Lcsc_rows = hypre_TReAlloc_v2(d_Lcsc_rows, HYPRE_Int, capacity, HYPRE_Int, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
            d_Lcsc_data = hypre_TReAlloc_v2(d_Lcsc_data, HYPRE_Real, capacity, HYPRE_Real, capacity+nnz_A, HYPRE_MEMORY_DEVICE);
            capacity = capacity + nnz_A;
-
-           /* 
-           //#ifdef HYPRE_ILDL_DEBUG
-           hypre_printf("%s %s %d : k=%d, capacity : before=%d, after=%d\n",__FILE__,__FUNCTION__,__LINE__,k,capacity-nnz_A,capacity);
-           fflush(NULL);
-           //#endif
-           */
        }
 
       hypre_TMemcpy(d_Lcsc_col_count + k, 
             &col_k_nnz, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
 
       // GPU version of the same exclusive scan (we implement it with an inclusive scan)
-      hypre_TMemcpy(d_Lcsc_col_offsets, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
+      hypre_TMemcpy(d_Lcsc_col_offsets + k, &zero_int, HYPRE_Int, 1, HYPRE_MEMORY_DEVICE, HYPRE_MEMORY_HOST);
       thrust::inclusive_scan(
          thrust::device,
          d_Lcsc_col_count, 
@@ -1356,6 +1282,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
          d_Lcsc_col_offsets + 1,
          thrust::plus<HYPRE_Int>()
          );
+
 
       nThreads = 128;
       nBlocks = (col_k_nnz + nThreads-1)/nThreads;  
@@ -1403,17 +1330,15 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    hypre_TFree(d_temp3, HYPRE_MEMORY_DEVICE);
    hypre_TFree(d_col_k_nnz, HYPRE_MEMORY_DEVICE);
    hypre_TFree(d_adj_diff, HYPRE_MEMORY_DEVICE);
-   // hypre_TFree(d_magsq, HYPRE_MEMORY_DEVICE);
+
+   hypre_TFree(d_Lcsc_col_offsets, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_Lcsc_rows, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_Lcsc_data, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_Lcsc_col_count, HYPRE_MEMORY_DEVICE);
+   hypre_TFree(d_D_data, HYPRE_MEMORY_DEVICE);
 
    /* Convert L to CSR */
-   HYPRE_Int nnz_L;
-   hypre_TMemcpy(&nnz_L, 
-         d_Lcsc_col_offsets + n, 
-         HYPRE_Int, 
-         1, 
-         HYPRE_MEMORY_HOST, 
-         HYPRE_MEMORY_DEVICE);
-
+   HYPRE_Int nnz_L = Lcsc_col_offsets[n];
    hypre_CSRMatrix * Lcsc = hypre_CSRMatrixCreate(n, m, nnz_L);
    hypre_CSRMatrix * Lcsr = hypre_CSRMatrixCreate(n, m, nnz_L);
 
@@ -1499,7 +1424,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int fill_factor, HYPRE
    }
    LDL_diag_i[n] = pos;
 
-   printf("pos=%d  nnz_LDL=%d\n", pos, nnz_LDL);
    hypre_assert(pos == nnz_LDL);
 
    /* /\**** BEGIN ADDED by JM ****\/ */
