@@ -366,6 +366,7 @@ hypre_BoomerAMGCreate()
    hypre_BoomerAMGSetILULowerJacobiIters(amg_data, ilu_lower_jacobi_iters);
    hypre_BoomerAMGSetILUUpperJacobiIters(amg_data, ilu_upper_jacobi_iters);
    hypre_BoomerAMGSetILUMatrixMarketFileName (amg_data, mm_file_name);
+   hypre_BoomerAMGSetILUNumNonzeros(amg_data, -1);
    hypre_BoomerAMGSetILUMaxIter(amg_data, ilu_max_iter);
    hypre_BoomerAMGSetILULocalReordering(amg_data, ilu_reordering_type);
    hypre_BoomerAMGSetFSAIMaxSteps(amg_data, fsai_max_steps);
@@ -4302,6 +4303,31 @@ hypre_BoomerAMGSetILUMatrixMarketFileName( void       *data,
    }
 
    return hypre_error_flag;
+}
+
+HYPRE_Int
+hypre_BoomerAMGGetILUNumNonzeros (void *data)
+{
+  hypre_ParAMGData *amg_data = (hypre_ParAMGData *) data;
+  if (!amg_data)
+    {
+      /* TODO: This is an error. Better way to handle? */
+      return -1;
+    }
+  return hypre_ParAMGDataILUNumNonzeros(amg_data);
+}
+
+HYPRE_Int
+hypre_BoomerAMGSetILUNumNonzeros(void *data, HYPRE_Int nnz)
+{
+  hypre_ParAMGData *amg_data = (hypre_ParAMGData *) data;
+  if (!amg_data)
+    {
+      hypre_error_in_arg(1);
+      return hypre_error_flag;
+    }
+  hypre_ParAMGDataILUNumNonzeros(amg_data) = nnz;
+  return hypre_error_flag;
 }
 
 

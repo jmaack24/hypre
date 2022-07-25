@@ -31,7 +31,8 @@ hypre_ILUSetupILDLTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol
                           hypre_CSRMatrix **BLUptr, hypre_ParCSRMatrix **matSptr, hypre_CSRMatrix **Eptr,
                           hypre_CSRMatrix **Fptr,
                           HYPRE_Int **A_fake_diag_ip,
-                          HYPRE_Int tri_solve, char * mmfilename)
+                          HYPRE_Int tri_solve, char * mmfilename,
+			  HYPRE_Int *ldl_nnz)
 {
 #ifdef HYPRE_ILDL_DEBUG
    hypre_printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
@@ -146,7 +147,7 @@ hypre_ILUSetupILDLTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE_Real *tol
 #endif
 
       MPI_Comm             comm = hypre_ParCSRMatrixComm(A);
-      hypre_ILUSetupILDLTNoPivot(A_diag, lfil, tol, NULL, NULL, n, n, &ALDL, comm, mmfilename);
+      hypre_ILUSetupILDLTNoPivot(A_diag, lfil, tol, NULL, NULL, n, n, &ALDL, comm, mmfilename, ldl_nnz);
       hypre_CSRMatrixDestroy(A_diag);
       /* | L \ U (B) L^{-1}F  |
        * | EU^{-1}   L \ U (S)|
@@ -1046,7 +1047,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag,
 			   HYPRE_Int nI,
 			   hypre_ParCSRMatrix **LDLptr,
                            MPI_Comm comm,
-			   char * mmfilename)
+			   char * mmfilename,
+			   HYPRE_Int *ldl_nnz)
 {
 #ifdef HYPRE_USING_CUDA
   cudaEvent_t start, stop;
@@ -1287,6 +1289,7 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag,
 
   /* Create this matrix */
   HYPRE_Int nnz_LDL = n + 2*(nnz_L-n);
+  *ldl_nnz = nnz_LDL;
 
   HYPRE_Int * LDL_diag_i = hypre_TAlloc(HYPRE_Int, n + 1, HYPRE_MEMORY_HOST);
   HYPRE_Int * LDL_diag_j = hypre_TAlloc(HYPRE_Int, nnz_LDL, HYPRE_MEMORY_HOST);

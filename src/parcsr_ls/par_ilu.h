@@ -95,6 +95,8 @@ typedef struct hypre_ParILUData_struct
    HYPRE_Int            nLU;
    HYPRE_Int            nI;
 
+   HYPRE_Int            num_nonzeros;
+
    /* used when schur block is formed */
    HYPRE_Int            *u_end;
 
@@ -229,6 +231,7 @@ typedef struct hypre_ParILUData_struct
 #define hypre_ParILUDataLowerJacobiIters(ilu_data)             ((ilu_data) -> lower_jacobi_iters)
 #define hypre_ParILUDataUpperJacobiIters(ilu_data)             ((ilu_data) -> upper_jacobi_iters)
 #define hypre_ParILUDataMatrixMarketFileName(ilu_data)         ((ilu_data) -> mmfilename)
+#define hypre_ParILUDataNumNonzeros(ilu_data)                  ((ilu_data) -> num_nonzeros)
 
 #define hypre_ParILUDataIluType(ilu_data)                      ((ilu_data) -> ilu_type)
 #define hypre_ParILUDataNLU(ilu_data)                          ((ilu_data) -> nLU)
@@ -493,7 +496,7 @@ HYPRE_Int hypre_ILUSetupILDLTDevice(hypre_ParCSRMatrix *A, HYPRE_Int lfil, HYPRE
                                     hypre_CsrsvData ** matBLU_csrsvdata, hypre_CsrsvData ** matSLU_csrsvdata,
                                     hypre_CSRMatrix **BLUptr, hypre_ParCSRMatrix **matSptr,
                                     hypre_CSRMatrix **Eptr, hypre_CSRMatrix **Fptr, HYPRE_Int **A_fake_diag_ip, HYPRE_Int tri_solve,
-                                    char * mmfilename);
+                                    char * mmfilename, HYPRE_Int *ldl_nnz);
 HYPRE_Int hypre_ParILURAPReorder(hypre_ParCSRMatrix *A, HYPRE_Int *perm, HYPRE_Int *rqperm,
                                  hypre_ParCSRMatrix **A_pq);
 HYPRE_Int hypre_ILUSetupLDUtoCusparse(hypre_ParCSRMatrix *L, HYPRE_Real *D, hypre_ParCSRMatrix *U,

@@ -611,6 +611,14 @@ hypre_ILUSetMatrixMarketFileName( void *ilu_vdata,
    return hypre_error_flag;
 }
 
+HYPRE_Int
+hypre_ILUGetNumNonzeros(void *ilu_vdata)
+{
+  hypre_ParILUData *ilu_data = (hypre_ParILUData*) ilu_vdata;
+  return hypre_ParILUDataNumNonzeros(ilu_data);
+  /* return hypre_ParCSRMatrixNumNonzeros(hypre_ParILUDataMatBILUDevice(ilu_data)); */
+}
+
 /* Set convergence tolerance for ILU solver */
 HYPRE_Int
 hypre_ILUSetTol( void *ilu_vdata, HYPRE_Real tol )

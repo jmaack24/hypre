@@ -1335,6 +1335,12 @@ HYPRE_BoomerAMGSetILUMatrixMarketFileName (HYPRE_Solver solver,
    return (hypre_BoomerAMGSetILUMatrixMarketFileName ( (void *) solver, mmfilename ) );
 }
 
+HYPRE_Int
+HYPRE_BoomerAMGGetILUNumNonzeros (HYPRE_Solver solver)
+{
+  return (hypre_BoomerAMGGetILUNumNonzeros ( (void *) solver));
+}
+
 /*--------------------------------------------------------------------------
  * HYPRE_BoomerAMGSetILULocalReordering
  *--------------------------------------------------------------------------*/
