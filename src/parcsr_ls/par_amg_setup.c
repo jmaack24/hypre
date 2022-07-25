@@ -3431,6 +3431,9 @@ hypre_BoomerAMGSetup( void               *amg_vdata,
                         (HYPRE_ParCSRMatrix) A_array[j],
                         (HYPRE_ParVector) F_array[j],
                         (HYPRE_ParVector) U_array[j]);
+
+	 hypre_BoomerAMGSetILUNumNonzeros(amg_data,
+					  HYPRE_ILUGetNumNonzeros(smoother[j]));
       }
       else if ((smooth_type == 8 || smooth_type == 18) && smooth_num_levels > j)
       {

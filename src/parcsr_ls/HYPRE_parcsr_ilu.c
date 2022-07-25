@@ -139,6 +139,12 @@ HYPRE_ILUSetMatrixMarketFileName (HYPRE_Solver solver,
    return (hypre_ILUSetMatrixMarketFileName ( (void *) solver, mmfilename ) );
 }
 
+HYPRE_Int
+HYPRE_ILUGetNumNonzeros(HYPRE_Solver solver)
+{
+  return (hypre_ILUGetNumNonzeros((void *) solver));
+}
+
 /*--------------------------------------------------------------------------
  * HYPRE_ILUSetTol
  *--------------------------------------------------------------------------*/
@@ -258,3 +264,12 @@ HYPRE_ILUGetFinalRelativeResidualNorm(  HYPRE_Solver solver, HYPRE_Real *res_nor
 {
    return hypre_ILUGetFinalRelativeResidualNorm(solver, res_norm);
 }
+
+/* HYPRE_Int */
+/* HYPRE_ILUGetNumNonzeros( HYPRE_Solver solver, HYPRE_Int *nnz) */
+/* { */
+/*   hypre_CSRMatrix *ILU = hypre_ParILUDataMatBILUDevice(solver); */
+/*   *nnz = hypre_CSRMatrixNumNonzeros(ILU); */
+/*   return 0; */
+/*   /\* return hypre_ParILUDataMatBILUDevice(ilu_data); *\/ */
+/* } */

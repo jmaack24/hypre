@@ -461,9 +461,11 @@ hypre_ILUSetup( void               *ilu_vdata,
          break;
       case 2:
 #ifdef HYPRE_USING_CUDA
+	HYPRE_Int ldl_nnz;
          hypre_ILUSetupILDLTDevice(matA, max_row_elmts, droptol, perm, perm, n, n, matL_des, matU_des,
                                    &matBLU_csrsvdata, &matSLU_csrsvdata, &matBLU_d, &matS,
-                                   &matE_d, &matF_d, &A_diag_fake, tri_solve, mmfilename);//BJ + hypre_ilut(), setup the device solve
+                                   &matE_d, &matF_d, &A_diag_fake, tri_solve, mmfilename, &ldl_nnz);//BJ + hypre_ilut(), setup the device solve
+	 hypre_ParILUDataNumNonzeros(ilu_data) = ldl_nnz;
 #else
 #endif
          break;
