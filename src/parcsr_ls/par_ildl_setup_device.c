@@ -819,14 +819,26 @@ __global__ void scale_by_diagonal(
 
    HYPRE_Real dk = temp2[k] - avect[k];
 
-   if(tidx == 0) {
+   if (abs(dk) < 1e-8)
+     {
+       dk = 1e-8;
+     }
+
+   if (tidx == 0) {
       D_data[k] = dk;
    }
 
-   if(tidx < n - k) {
+   if (tidx < n - k) {
       HYPRE_Int j = tidx + k;
       HYPRE_Real t = temp2[j]-avect[j];
-      temp3[j] = t / dk;
+      if (abs(t) > 1e-8)
+	{
+	  temp3[j] = t / dk;
+	}
+      else
+	{
+	  temp3[j] = 0.0;
+	}
    }
 }
 
@@ -1159,18 +1171,6 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
 	{
 	  magsq = thrust::inner_product(thrust::device, d_temp3 + k, d_temp3 + n, d_temp3 + k, 0.0);
 
-	  /* hypre_assert(isfinite(magsq)); */
-	  /* hypre_assert(magsq > 0.0); */
-
-	  /* if (!isfinite(magsq) || magsq <= 0.0) */
-	  /*   { */
-	  /*     printf("%s %s %d : Column %d had nonsensical magnitude %e\n", */
-	  /* 	     __FILE__,__FUNCTION__,__LINE__, */
-	  /* 	     k, sqrt(magsq)); */
-	  /*     fflush(NULL); */
-	  /*     hypre_error(144); */
-	  /*   } */
-
 	  device_hypre_DenseVectorDropEntriesAfterK_ptol<<<nBlocks, nThreads>>>(n,
 										k,
 										d_temp3,
@@ -1190,8 +1190,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
 	}
       else
 	{
-	  /* Not doing tolerance drop. Assume vector is completely filled for now. Reduction */
-	  /* to sparse vector will get the correct number. */
+	  /* Not doing tolerance drop. Assume vector is completely filled for now. */
+	  /* Reduction to sparse vector will get the correct number. */
 	  col_k_nnz = n - k;
 	}
 
@@ -1357,8 +1357,8 @@ hypre_ILUSetupILDLTNoPivot(hypre_CSRMatrix *A_diag, HYPRE_Int lfil, HYPRE_Real *
 		  D_data[ii], ii
 		  );
 	   fflush(NULL);
-	   hypre_error(144);
-	   break;
+	   // hypre_error(144);
+	   // break;
 	 }
      }
 
